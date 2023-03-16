@@ -70,6 +70,7 @@ void init_bound_cond(Gauge_Conf *GC,
 										 int const a);
 void free_replica(Gauge_Conf *GC,
 									GParam const * const param);
+void free_replica_beta_pt(Gauge_Conf *GC, GParam* param);
 void free_bound_cond(Gauge_Conf *GC,
 										 GParam const * const param);
 void read_gauge_conf_from_file_with_name(Gauge_Conf *GC,
@@ -129,7 +130,18 @@ void alloc_clover_array(Gauge_Conf *GC,
                         GParam const * const param);
 void end_clover_array(Gauge_Conf *GC,
                       GParam const * const param);
-
+//added to gauge_conf_def.c
+void init_gauge_conf_beta_pt(Gauge_Conf** GC, 
+                             GParam const * const param);
+void write_conf_on_file_with_name_beta_pt(Gauge_Conf const * const GC,
+                            GParam const * const param,
+                            char const * const namefile, int rep_index);
+void init_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename, int rep_index);
+void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename, int rep_index);
+void write_conf_on_file_with_name_beta_pt(Gauge_Conf const * const GC,
+                            GParam const * const param,
+                            char const * const namefile, int rep_index);
+void write_replica_on_file_beta_pt(Gauge_Conf const * const GC, GParam const * const param);
 
 // in gauge_conf_meas.c
 double plaquettep(Gauge_Conf const * const GC,
@@ -327,6 +339,12 @@ void calcstaples_wilson(Gauge_Conf const * const GC,
                         long r,
                         int i,
                         GAUGE_GROUP *M);
+void calcstaples_wilson_beta_pt(Gauge_Conf const * const GC,
+                                Geometry const * const geo,
+                                GParam const * const gparam,
+                                long r,
+                                int i,
+                                GAUGE_GROUP *M);
 void calcstaples_tracedef(Gauge_Conf const * const GC,
                           Geometry const * const geo,
                           GParam const * const param,
@@ -364,11 +382,23 @@ void heatbath(Gauge_Conf * GC,
               GParam const * const param,
               long r,
               int i);
+void heatbath_beta_pt(Gauge_Conf * GC,
+                      Geometry const * const geo,
+                      GParam const * const param,
+                      int rep_index,
+                      long site,
+                      int dir);
 void overrelaxation(Gauge_Conf * GC,
                     Geometry const * const geo,
                     GParam const * const param,
                     long r,
                     int i);
+void overrelaxation_beta_pt(Gauge_Conf * GC,
+                            Geometry const * const geo,
+                            GParam const * const param,
+                            int rep_index, 
+                            long site,
+                            int dir);
 int metropolis(Gauge_Conf *GC,
                Geometry const * const geo,
                GParam const * const param,
@@ -392,6 +422,9 @@ void overrelaxation_with_defect(Gauge_Conf *GC,
 void update(Gauge_Conf *GC,
             Geometry const * const geo,
             GParam const * const param);
+void update_beta_pt_replica(Gauge_Conf* GC,
+                       Geometry const * const geo,
+                       GParam const * const param);
 void update_with_defect(Gauge_Conf * GC,
 												Geometry const * const geo,
 												GParam const * const param);

@@ -15,6 +15,10 @@ typedef struct GParam {
   double d_beta;
   double d_h[NCOLOR]; // parameters for the trace deformation
   double d_theta;
+
+  //beta parallel tempering
+  double* d_beta_pt;
+  int d_beta_pt_swap_every;
 	
 	// parallel tempering parameters
 	int d_defect_dir;				// defect boundary
@@ -100,6 +104,7 @@ void init_data_file(FILE **dataf, FILE **chiprimefilep, FILE **topchar_tcorr_f, 
 void free_hierarc_params(GParam *param);
 void print_parameters_local(GParam const * const param, time_t time_start, time_t time_end);
 void print_parameters_local_pt(GParam const * const param, time_t time_start, time_t time_end);
+void print_parameters_beta_pt(GParam const * const param, time_t time_start, time_t time_end);
 void print_parameters_local_pt_multicanonic(GParam const * const param, time_t time_start, time_t time_end);
 void print_parameters_polycorr_long(GParam * param, time_t time_start, time_t time_end);
 void print_parameters_polycorr(GParam * param, time_t time_start, time_t time_end);
@@ -109,5 +114,7 @@ void print_parameters_tracedef(GParam const * const param, time_t time_start, ti
 void print_parameters_tube_disc(GParam * param, time_t time_start, time_t time_end);
 void print_parameters_tube_conn(GParam * param, time_t time_start, time_t time_end);
 void print_parameters_tube_conn_long(GParam * param, time_t time_start, time_t time_end);
+
+void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_pt);
 
 #endif

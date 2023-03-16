@@ -85,6 +85,10 @@ void readinput(char *in_file, GParam *param)
 		param->d_L_defect[i]=0;
 		}
 		param->d_N_replica_pt=1;
+    int beta_pt_flag = 0;
+    double beta_min_pt = -1, beta_max_pt = -1;
+    param->d_beta_pt_swap_every = 1;
+    param->d_beta_pt = NULL;
 		
 		// default = do not compute chi_prime
 		param->d_chi_prime_meas = 0;
@@ -539,6 +543,45 @@ void readinput(char *in_file, GParam *param)
 										param->d_pt_bound_cond_coeff[i]=temp_d;
 										}
                   }
+           else if(strncmp(str, "N_replica_beta_pt", 17) == 0)
+                  {
+                  err = fscanf(input, "%d", &temp_i);
+                  if(err != 1)
+                    {
+                    fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
+                    exit(EXIT_FAILURE);
+                    }
+                  param->d_N_replica_pt = temp_i;
+                  beta_pt_flag = 1;
+                  }
+           else if(strncmp(str, "beta_min_pt", 11))
+                  {
+                  err = fscanf(input, "%lf", &beta_min_pt);
+                  if(err!=1)
+                    {
+                    fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
+                    exit(EXIT_FAILURE);
+                    }
+                  }
+           else if(strncmp(str, "beta_max_pt", 11))
+                  {
+                  err = fscanf(input, "%lf", &beta_max_pt);
+                  if(err!=1)
+                    {
+                    fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
+                    exit(EXIT_FAILURE);
+                    }
+                  }
+           else if(strncmp(str, "beta_pt_swap_every", 18))
+                  {
+                  err = fscanf(input, "%d", &temp_i);
+                  if(err!=1)
+                    {
+                    fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
+                    exit(EXIT_FAILURE);
+                    }
+                  param->d_beta_pt_swap_every = temp_i;
+                  }
            else if(strncmp(str, "swap_acc_file", 13)==0)
                   { 
                   err=fscanf(input, "%s", temp_str);
@@ -736,6 +779,8 @@ void readinput(char *in_file, GParam *param)
 				fprintf(stderr, "Error: number of replica of parallel tempering must be greater than 0 (%s, %d)\n", __FILE__, __LINE__);
 				exit(EXIT_FAILURE);
 				}
+
+      if (beta_pt_flag) beta_pt_init_and_check(param, beta_min_pt, beta_max_pt);
 
       init_derived_constants(param);
       }
@@ -1066,6 +1111,73 @@ void print_parameters_local_pt_multicanonic(GParam const * const param, time_t t
 
     fclose(fp);
     }
+
+void print_parameters_beta_pt(GParam const * const param, time_t time_start, time_t time_end) {
+    FILE *fp;
+    int i;
+    double diff_sec;
+
+    fp=fopen(param->d_log_file, "w");
+    fprintf(fp, "+-------------------------------------------------+\n");
+    fprintf(fp, "| Simulation details for yang_mills_local_beta_pt |\n");
+    fprintf(fp, "+-------------------------------------------------+\n\n");
+
+    #ifdef OPENMP_MODE
+     fprintf(fp, "using OpenMP with %d threads\n\n", NTHREADS);
+    #endif
+
+    fprintf(fp, "number of colors: %d\n", NCOLOR);
+    fprintf(fp, "spacetime dimensionality: %d\n\n", STDIM);
+
+    fprintf(fp, "lattice: %d", param->d_size[0]);
+    for(i=1; i<STDIM; i++)
+       {
+       fprintf(fp, "x%d", param->d_size[i]);
+       }
+    #ifdef THETA_MODE
+      fprintf(fp, "theta: %.10lf\n", param->d_theta);
+    #endif
+//specific beta pt part
+    fprintf(fp, "\n\n");
+    fprintf(fp,"number of copies used in beta parallel tempering: %d\n", param->d_N_replica_pt);
+    fprintf(fp,"values of beta:\n");
+    for (int i = 0; i < param->d_N_replica_pt; i++) fprintf(fp, "%.15f ", param->d_beta_pt[i]);
+    fprintf(fp, "\nSwap every %d sweep in each replica\n", param->d_beta_pt_swap_every);
+    fprintf(fp, "\n\n");
+//end of specific part
+    fprintf(fp, "sample:    %d\n", param->d_sample);
+    fprintf(fp, "thermal:   %d\n", param->d_thermal);
+    fprintf(fp, "overrelax: %d\n", param->d_overrelax);
+    fprintf(fp, "measevery: %d\n", param->d_measevery);
+    fprintf(fp, "\n");
+
+    fprintf(fp, "start:                   %d\n", param->d_start);
+    fprintf(fp, "saveconf_back_every:     %d\n", param->d_saveconf_back_every);
+    fprintf(fp, "saveconf_analysis_every: %d\n", param->d_saveconf_analysis_every);
+    fprintf(fp, "\n");
+
+    fprintf(fp, "coolsteps:      %d\n", param->d_coolsteps);
+    fprintf(fp, "coolrepeat:     %d\n", param->d_coolrepeat);
+    fprintf(fp, "\n");
+
+    fprintf(fp, "randseed: %u\n", param->d_randseed);
+    fprintf(fp, "\n");
+
+    diff_sec = difftime(time_end, time_start);
+    fprintf(fp, "Simulation time: %.3lf seconds\n", diff_sec );
+    fprintf(fp, "\n");
+
+    if(endian()==0)
+      {
+      fprintf(fp, "Little endian machine\n\n");
+      }
+    else
+      {
+      fprintf(fp, "Big endian machine\n\n");
+      }
+
+    fclose(fp);
+}
 
 void print_parameters_local_pt(GParam const * const param, time_t time_start, time_t time_end)
     {
@@ -1737,7 +1849,34 @@ void print_parameters_tube_conn_long(GParam * param, time_t time_start, time_t t
     fclose(fp);
     }
 
-
+void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_pt) {
+  if (param->d_N_replica_pt <= 1) {
+    fprintf(stderr, "Number of parallel tempering in beta set to %d. Presumably an error?\n", param->d_N_replica_pt);
+    fprintf(stderr, "(%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  if (beta_min_pt <= 0) {
+    fprintf(stderr, "For beta parallel tempering: beta min <= 0 (%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  if (beta_min_pt >= beta_max_pt) {
+    fprintf(stderr, "For beta parallel tempering: beta min >= beta max (%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  if (param->d_beta_pt_swap_every < 1) {
+    fprintf(stderr, "For beta parallel tempering: swap every < 1 (%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  int err = posix_memalign((void**) &(param->d_beta_pt), DOUBLE_ALIGN, (size_t) param->d_N_replica_pt * sizeof(double));
+  if (err) {
+    fprintf(stderr, "Problems allocating array of betas for beta parallel tempering (%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  int N_beta_m1 = param->d_N_replica_pt - 1;
+  double delta_beta = (beta_max_pt - beta_min_pt) / (double) N_beta_m1;
+  param->d_beta_pt[0] = beta_min_pt;
+  param->d_beta_pt[N_beta_m1];
+  for (int i = 1; i < N_beta_m1; i++) param->d_beta_pt[i] = beta_min_pt + i * delta_beta;
+}
 
 #endif
-

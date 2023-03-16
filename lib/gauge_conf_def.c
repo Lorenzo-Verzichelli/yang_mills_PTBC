@@ -119,6 +119,266 @@ void init_gauge_conf_replica(Gauge_Conf **GC, GParam  const * const param)
 		}
 	}
 
+void init_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename, int rep_index)
+  {
+  GC->conf_label = rep_index;
+
+  long r, j;
+  int err;
+
+  // allocate the local lattice
+  err=posix_memalign((void**) &(GC->lattice), (size_t) DOUBLE_ALIGN, (size_t) param->d_volume * sizeof(GAUGE_GROUP *));
+  if(err!=0)
+    {
+    fprintf(stderr, "Problems in allocating the lattice! (%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  for(r=0; r<(param->d_volume); r++)
+     {
+     err=posix_memalign((void**) &(GC->lattice[r]), (size_t) DOUBLE_ALIGN, (size_t) STDIM * sizeof(GAUGE_GROUP));
+     if(err!=0)
+       {
+       fprintf(stderr, "Problems in allocating the lattice! (%s, %d)\n", __FILE__, __LINE__);
+       exit(EXIT_FAILURE);
+       }
+     }
+
+  #ifdef THETA_MODE
+    alloc_clover_array(GC, param);
+  #endif
+
+  // initialize lattice
+  if(param->d_start==0) // ordered start
+    {
+    GAUGE_GROUP aux1, aux2;
+    one(&aux1);
+
+    GC->update_index=0;
+
+    for(r=0; r<(param->d_volume); r++)
+       {
+       for(j=0; j<STDIM; j++)
+          {
+          rand_matrix(&aux2);
+          times_equal_real(&aux2, 0.001);
+          plus_equal(&aux2, &aux1);
+          unitarize(&aux2);
+          equal_dag(&(GC->lattice[r][j]), &aux2);
+          }
+       }
+    }
+  if(param->d_start==1)  // random start
+    {
+    GAUGE_GROUP aux1;
+
+    GC->update_index=0;
+
+    for(r=0; r<(param->d_volume); r++)
+       {
+       for(j=0; j<STDIM; j++)
+          {
+          rand_matrix(&aux1);
+          equal(&(GC->lattice[r][j]), &aux1);
+          }
+       }
+    }
+
+  if(param->d_start==2) // initialize from stored conf
+    {
+    read_gauge_conf_from_file_with_name_beta_pt(GC, param, filename, rep_index);
+    }
+  }
+
+void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename, int rep_index)
+  {
+  FILE *fp;
+  int i, dimension, tmp_i;
+  int err, mu;
+  long lex, si;
+  GAUGE_GROUP matrix;
+  #ifdef HASH_MODE
+    char md5sum_new[2*MD5_DIGEST_LENGTH+1];
+    char md5sum_old[2*MD5_DIGEST_LENGTH+1];
+  #else
+    char md5sum_old[2*STD_STRING_LENGTH+1]={0};
+  #endif
+
+  fp=fopen(filename, "r"); // open the configuration file
+  if(fp==NULL)
+    {
+    fprintf(stderr, "Error in opening the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  else // read the txt header of the configuration
+    {
+    err=fscanf(fp, "%d", &dimension);
+    if(err!=1)
+      {
+      fprintf(stderr, "Error in reading the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+      }
+    if(dimension != STDIM)
+      {
+      fprintf(stderr, "The space time dimension of the configuration (%d) does not coincide with the one of the global parameter (%d)\n",
+              dimension, STDIM);
+      exit(EXIT_FAILURE);
+      }
+
+    for(i=0; i<STDIM; i++)
+       {
+       err=fscanf(fp, "%d", &tmp_i);
+       if(err!=1)
+         {
+         fprintf(stderr, "Error in reading the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
+         exit(EXIT_FAILURE);
+         }
+       if(tmp_i != param->d_size[i])
+         {
+         fprintf(stderr, "The size of the configuration lattice does not coincide with the one of the global parameter\n");
+         exit(EXIT_FAILURE);
+         }
+       }
+    
+    double beta_read;
+    err = fscanf(fp, "%lf", &beta_read);
+    if (err != 1) {
+      fprintf(stderr, "Error in reading the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+    }
+    if (abs(beta_read - param->d_beta_pt[rep_index]) > MIN_VALUE) {
+      fprintf(stderr, "While reading replica conf from file %s: beta not matching\n", filename, __FILE__, __LINE__);
+      fprintf(stderr, "Compared values were %.15f and %.15f, are they close?", beta_read, param->d_beta_pt[rep_index]);
+      exit(EXIT_FAILURE);
+    }
+
+    err=fscanf(fp, "%ld %s\n", &(GC->update_index), md5sum_old);
+    if(err!=2)
+      {
+      fprintf(stderr, "Error in reading the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+      }
+
+    fclose(fp);
+    }
+
+  fp=fopen(filename, "rb"); // open the configuration file in binary
+  if(fp==NULL)
+    {
+    fprintf(stderr, "Error in opening the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  else
+    {
+    // read again the header
+    err=0;
+    while(err!='\n')
+         {
+         err=fgetc(fp);
+         }
+
+    for(lex=0; lex<param->d_volume; lex++)
+       {
+       si=lex_to_si(lex, param);
+       for(mu=0; mu<STDIM; mu++)
+          {
+          read_from_binary_file_bigen(fp, &matrix);
+
+          equal(&(GC->lattice[si][mu]), &matrix);
+          }
+       }
+    fclose(fp);
+
+    #ifdef HASH_MODE
+      // compute the new md5sum and check for consistency
+      compute_md5sum_conf(md5sum_new, GC, param);
+      if(strncmp(md5sum_old, md5sum_new, 2*MD5_DIGEST_LENGTH+1)!=0)
+        {
+        fprintf(stderr, "The computed md5sum %s does not match the stored %s (%s, %d)\n", md5sum_new, md5sum_old, __FILE__, __LINE__);
+        exit(EXIT_FAILURE);
+        }
+    #endif
+    }
+  }
+
+// save a configuration in ILDG-like format
+void write_conf_on_file_with_name_beta_pt(Gauge_Conf const * const GC,
+                            GParam const * const param,
+                            char const * const namefile, int rep_index)
+  {
+  long si, lex;
+  int i, mu;
+  #ifdef HASH_MODE
+    char md5sum[2*MD5_DIGEST_LENGTH+1];
+  #else
+     char md5sum[2*STD_STRING_LENGTH+1]={0};
+  #endif
+  FILE *fp;
+
+  #ifdef HASH_MODE
+    compute_md5sum_conf(md5sum, GC, param);
+  #endif
+
+  fp=fopen(namefile, "w"); // open the configuration file
+  if(fp==NULL)
+    {
+    fprintf(stderr, "Error in opening the file %s (%s, %d)\n", namefile, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  else
+    {
+    fprintf(fp, "%d ", STDIM);
+    for(i=0; i<STDIM; i++)
+       {
+       fprintf(fp, "%d ", param->d_size[i]);
+       }
+
+    fprintf(fp, "%.15f ", param->d_beta_pt[rep_index]);
+
+    fprintf(fp, "%ld %s\n", GC->update_index, md5sum);
+    }
+  fclose(fp);
+
+  fp=fopen(namefile, "ab"); // open the configuration file in binary mode
+  if(fp==NULL)
+    {
+    fprintf(stderr, "Error in opening the file %s (%s, %d)\n", namefile, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  else
+    {
+    for(lex=0; lex<param->d_volume; lex++)
+       {
+       si=lex_to_si(lex, param);
+       for(mu=0; mu<STDIM; mu++)
+          {
+          print_on_binary_file_bigen(fp, &(GC->lattice[si][mu]) );
+          }
+       }
+    fclose(fp);
+    }
+  }
+
+// used to allocate the replicas in the beta parallel tempering
+void init_gauge_conf_beta_pt(Gauge_Conf** GC, GParam const * const param) {
+  int err = posix_memalign((void **) GC, (size_t) DOUBLE_ALIGN, (size_t) param->d_N_replica_pt * sizeof(Gauge_Conf));
+  if (err != 0) {
+    fprintf(stderr, "Problems in allocating the parallel tempering replicas! (%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  int i;
+  #ifdef OPENMP_MODE
+  #pragma omp parallel for num_threads(NTHREADS) private(i)
+  #endif
+  for (i = 0; i < param->d_N_replica_pt; i++) {
+    char filename[STD_STRING_LENGTH], replica_index[STD_STRING_LENGTH];
+    strcpy(filename,param->d_conf_file); // filename = param->d_conf_file
+		strcat(filename,"_replica_");			
+		sprintf(replica_index, "%d", i);
+		strcat(filename, replica_index); // filename = param->d_conf_file + "_replica_${i}"
+		init_gauge_conf_from_file_with_name_beta_pt(&((*GC)[i]), param, filename, i);
+  }
+}
+
 // initialization of the defect for the replica with label i
 void init_bound_cond(Gauge_Conf *GC, GParam const * const param, int const i)
   {
@@ -290,6 +550,13 @@ void free_gauge_conf(Gauge_Conf *GC, GParam const * const param)
     end_clover_array(GC, param);
   #endif
   }
+
+void free_replica_beta_pt(Gauge_Conf *GC, GParam* param) {
+  int i;
+	for(i=0; i<param->d_N_replica_pt; i++) free_gauge_conf(&(GC[i]), param);
+  free(param->d_beta_pt);
+	free(GC);
+}
 	
 void free_replica(Gauge_Conf *GC, GParam const * const param)
 	{
@@ -391,6 +658,24 @@ void write_replica_on_file(Gauge_Conf const * const GC, GParam const * const par
 		write_conf_on_file_with_name(&(GC[i]),param,filename);
 		}
 	}
+
+  void write_replica_on_file_beta_pt(Gauge_Conf const * const GC, GParam const * const param)
+  {
+    	int i;
+
+	#ifdef OPENMP_MODE
+	#pragma omp parallel for num_threads(NTHREADS) private(i)
+	#endif	
+	for(i=0; i<param->d_N_replica_pt; i++)
+	{
+		char filename[STD_STRING_LENGTH], replica_index[STD_STRING_LENGTH];
+		strcpy(filename,param->d_conf_file);
+		strcat(filename,"_replica_");
+		sprintf(replica_index, "%d", i);
+		strcat(filename,replica_index); // filename = d_conf_file + "_replica_${i}"
+		write_conf_on_file_with_name_beta_pt(&(GC[i]), param, filename, i);
+		}
+  }
 	
 void write_replica_on_file_back(Gauge_Conf const * const GC, GParam const * const param)
 	{
