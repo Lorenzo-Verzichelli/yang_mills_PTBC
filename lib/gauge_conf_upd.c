@@ -730,6 +730,38 @@ void heatbath(Gauge_Conf *GC,
   single_heatbath(&(GC->lattice[r][i]), &stap, param);
   }
 
+void heatbath_beta_pt(Gauge_Conf *GC,
+              Geometry const * const geo,
+              GParam const * const param,
+              int rep_index,
+              long site,
+              int dir)
+  {
+  #ifdef DEBUG
+  if(site >= param->d_volume)
+    {
+    fprintf(stderr, "r too large: %ld >= %ld (%s, %d)\n", site, param->d_volume, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  if(dir >= STDIM)
+    {
+    fprintf(stderr, "i too large: i=%d >= %d (%s, %d)\n", dir, STDIM, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  #endif
+
+  GAUGE_GROUP stap;
+
+  #ifndef THETA_MODE
+    calcstaples_wilson(GC, geo, param, site, dir, &stap);
+  #else
+    calcstaples_with_topo(GC, geo, param, site, dir, &stap);
+  #endif
+
+  //THIS WILL NEVER WORK! :(
+  single_heatbath_beta_pt(&(GC[rep_index].lattice[site][dir]), rep_index, &stap, param->d_beta_pt[rep_index]);
+  }
+
 
 // perform an update with overrelaxation
 void overrelaxation(Gauge_Conf *GC,
@@ -993,6 +1025,103 @@ void overrelaxation_with_defect(Gauge_Conf *GC,
   single_overrelaxation(&(GC->lattice[r][i]), &stap);
   }
 	
+void update_beta_pt_replica(Gauge_Conf* GC,
+                       Geometry const * const geo,
+                       GParam const * const param)
+{
+   for(int i=0; i<STDIM; i++)
+      {
+      if(param->d_size[i]==1)
+      {
+      fprintf(stderr, "Error: this functon can not be used in the completely reduced case (%s, %d)\n", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+      }
+      }
+
+   long s;
+   int j, dir;
+
+   // heatbath
+   for(dir=0; dir<STDIM; dir++)
+      {
+      #ifdef THETA_MODE
+      compute_clovers_beta_pt(GC, geo, param, dir);
+      #endif
+
+      #ifdef OPENMP_MODE
+      #pragma omp parallel for num_threads(NTHREADS) private(s)
+      #endif 
+      for(s=0; s<( (param->d_N_replica_pt) * (param->d_volume)/2 ); s++)
+         {
+         // s = i * volume/2 + r
+			long r = s % ( (param->d_volume)/2 ); // site index
+			int i = (int) ( (s-r) / ( (param->d_volume)/2 ) ); // replica index
+			heatbath_beta_pt(GC, geo, param, i, r, dir);
+         }
+
+      #ifdef OPENMP_MODE
+      #pragma omp parallel for num_threads(NTHREADS) private(s)
+      #endif 
+      for(s=0; s<( (param->d_N_replica_pt)*(param->d_volume)/2 ); s++)
+			{
+         // s = i * volume/2 + aux ; aux = r - volume/2
+         long aux = s % ( (param->d_volume)/2 );
+         long r = (param->d_volume/2) + aux; // site index
+         int i = (int) ( (s-aux) / ( (param->d_volume)/2 ) ); // replica index
+         heatbath_beta_pt(GC, geo, param, i, r, dir);
+         }
+      }
+
+   // overrelax
+   for(dir=0; dir<STDIM; dir++)
+      {
+      #ifdef THETA_MODE
+      compute_clovers_beta_pt(GC, geo, param, dir);
+      #endif
+
+      for(j=0; j<param->d_overrelax; j++)
+         {
+         #ifdef OPENMP_MODE
+         #pragma omp parallel for num_threads(NTHREADS) private(s)
+         #endif 
+         for(s=0; s<( (param->d_N_replica_pt) * (param->d_volume)/2 ); s++)
+            {
+            // s = i * volume/2 + r
+			   long r = s % ( (param->d_volume)/2 ); // site index
+			   int i = (int) ( (s-r) / ( (param->d_volume)/2 ) ); // replica index
+			   overrelaxation(GC + i, geo, param, r, dir);
+            }
+
+         #ifdef OPENMP_MODE
+         #pragma omp parallel for num_threads(NTHREADS) private(s)
+         #endif 
+         for(s=0; s<( (param->d_N_replica_pt)*(param->d_volume)/2 ); s++)
+            {
+            // s = i * volume/2 + aux ; aux = r - volume/2
+            long aux = s % ( (param->d_volume)/2 );
+            long r = (param->d_volume/2) + aux; // site index
+            int i = (int) ( (s-aux) / ( (param->d_volume)/2 ) ); // replica index
+            overrelaxation(GC + i, geo, param, r, dir);
+            }
+         }
+      }
+   
+   // final unitarization
+   #ifdef OPENMP_MODE
+   #pragma omp parallel for num_threads(NTHREADS) private(s, dir)
+   #endif 
+   for(s=0; s<((param->d_N_replica_pt)*(param->d_volume)); s++)
+      {
+			// s = i * volume + r
+			long r = s % param->d_volume;
+			int i = (int) ( (s-r) / (param->d_volume) );
+      for(dir=0; dir<STDIM; dir++)
+         {
+         unitarize(&(GC[i].lattice[r][dir]));
+         } 
+      }
+}
+
 
 // perform a complete update
 void update(Gauge_Conf * GC,
