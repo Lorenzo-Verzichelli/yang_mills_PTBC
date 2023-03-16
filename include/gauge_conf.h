@@ -235,6 +235,10 @@ void perform_measures_localobs(Gauge_Conf *GC,
                                Geometry const * const geo,
                                GParam const * const param,
                                FILE *datafilep, FILE *chiprimefilep, FILE*);
+void perform_measures_beta_pt_replica(Gauge_Conf *GC,
+                                      Geometry const * const geo,
+                                      GParam const * const param,
+                                      FILE* data_filep, FILE* chiprimefilep);
 void perform_measures_localobs_with_tracedef(Gauge_Conf const * const GC,
                                              Geometry const * const geo,
                                              GParam const * const param,
@@ -339,12 +343,6 @@ void calcstaples_wilson(Gauge_Conf const * const GC,
                         long r,
                         int i,
                         GAUGE_GROUP *M);
-void calcstaples_wilson_beta_pt(Gauge_Conf const * const GC,
-                                Geometry const * const geo,
-                                GParam const * const gparam,
-                                long r,
-                                int i,
-                                GAUGE_GROUP *M);
 void calcstaples_tracedef(Gauge_Conf const * const GC,
                           Geometry const * const geo,
                           GParam const * const param,
@@ -382,23 +380,11 @@ void heatbath(Gauge_Conf * GC,
               GParam const * const param,
               long r,
               int i);
-void heatbath_beta_pt(Gauge_Conf * GC,
-                      Geometry const * const geo,
-                      GParam const * const param,
-                      int rep_index,
-                      long site,
-                      int dir);
 void overrelaxation(Gauge_Conf * GC,
                     Geometry const * const geo,
                     GParam const * const param,
                     long r,
                     int i);
-void overrelaxation_beta_pt(Gauge_Conf * GC,
-                            Geometry const * const geo,
-                            GParam const * const param,
-                            int rep_index, 
-                            long site,
-                            int dir);
 int metropolis(Gauge_Conf *GC,
                Geometry const * const geo,
                GParam const * const param,
@@ -425,6 +411,10 @@ void update(Gauge_Conf *GC,
 void update_beta_pt_replica(Gauge_Conf* GC,
                        Geometry const * const geo,
                        GParam const * const param);
+void beta_pt_swap(Gauge_Conf *GC,
+                  Geometry const * const geo,
+                  GParam const * const param,
+                  Acc_Utils* acc_counter);
 void update_with_defect(Gauge_Conf * GC,
 												Geometry const * const geo,
 												GParam const * const param);

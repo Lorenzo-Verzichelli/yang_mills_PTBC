@@ -989,6 +989,88 @@ void loc_topcharge_corr(Gauge_Conf const * const GC,
    free(topch);
    }
 
+//stupid, NOT PARALLELIZED implementation
+void perform_measures_beta_pt_replica(Gauge_Conf *GC_vec,
+                                      Geometry const * const geo,
+                                      GParam const * const param_vec,
+                                      FILE* datafilep, FILE* chiprimefilep)
+{
+   for (int rep_index = 0; rep_index < param_vec->d_N_replica_pt; rep_index++) {
+     GParam* param = param_vec + rep_index;
+     Gauge_Conf* GC = GC_vec + rep_index;
+#if( (STDIM==4 && NCOLOR>1) || (STDIM==2 && NCOLOR==1) )
+     int i, err;
+     double plaqs, plaqt, polyre, polyim, *charge, *chi_prime, *meanplaq, charge_nocooling, chi_prime_nocooling;
+
+     plaquette(GC, geo, param, &plaqs, &plaqt);
+     polyakov(GC, geo, param, &polyre, &polyim);
+		 
+     charge_nocooling=topcharge(GC, geo, param);
+		 if (param->d_chi_prime_meas == 1 ) chi_prime_nocooling=topo_chi_prime(GC, geo, param);
+
+		 // refresh topological charge of periodic replica (only for multicanonic)
+		 GC->stored_topo_charge = charge_nocooling;
+
+     fprintf(datafilep, "%.12g %ld %.12g %.12g %.12g %.12g %.12g ", param->d_beta, GC->update_index, plaqs, plaqt, polyre, polyim, charge_nocooling);
+		 if (param->d_chi_prime_meas == 1 ) fprintf(chiprimefilep, "%.12g %ld 0 %.12lg\n",param->d_beta, GC->update_index, chi_prime_nocooling);
+
+     err=posix_memalign((void**)&charge, (size_t)DOUBLE_ALIGN, (size_t) param->d_coolrepeat * sizeof(double));
+     if(err!=0)
+       {
+       fprintf(stderr, "Problems in allocating a vector (%s, %d)\n", __FILE__, __LINE__);
+       exit(EXIT_FAILURE);
+       }
+
+		 if (param->d_chi_prime_meas == 1)
+		 {
+     	err=posix_memalign((void**)&chi_prime, (size_t)DOUBLE_ALIGN, (size_t) param->d_coolrepeat * sizeof(double));
+     	if(err!=0)
+       	{
+       	fprintf(stderr, "Problems in allocating a vector (%s, %d)\n", __FILE__, __LINE__);
+       	exit(EXIT_FAILURE);
+       	}
+		 }
+
+     err=posix_memalign((void**)&meanplaq, (size_t)DOUBLE_ALIGN, (size_t) param->d_coolrepeat * sizeof(double));
+     if(err!=0)
+       {
+       fprintf(stderr, "Problems in allocating a vector (%s, %d)\n", __FILE__, __LINE__);
+       exit(EXIT_FAILURE);
+       }
+
+     if (param->d_chi_prime_meas == 1 ) topo_obs_cooling(GC, geo, param, charge, chi_prime, meanplaq);
+		 else topcharge_cooling(GC, geo, param, charge, meanplaq);
+     for(i=0; i<param->d_coolrepeat; i++)
+        {
+        fprintf(datafilep, "%.12g %.12g ", charge[i], meanplaq[i]);
+				if (param->d_chi_prime_meas == 1 ) fprintf(chiprimefilep, "%ld %d %.12lg\n", GC->update_index, (i+1)*param->d_coolsteps, chi_prime[i]);
+        }
+     fprintf(datafilep, "\n");
+
+     fflush(datafilep);
+		 if (param->d_chi_prime_meas == 1 ) fflush(chiprimefilep);
+
+     free(charge);
+		 if (param->d_chi_prime_meas == 1 ) free(chi_prime);
+     else 
+			{
+				(void) chiprimefilep;
+			}
+		 free(meanplaq);
+
+#else
+
+     double plaqs, plaqt, polyre, polyim;
+
+     plaquette(GC, geo, param, &plaqs, &plaqt);
+     polyakov(GC, geo, param, &polyre, &polyim);
+
+     fprintf(datafilep, "%.12g %.12g %.12g %.12g ", plaqs, plaqt, polyre, polyim);
+     fprintf(datafilep, "\n");
+     fflush(datafilep);
+#endif
+   }
+}                                      
 
 void perform_measures_localobs(Gauge_Conf *GC,
                                Geometry const * const geo,
@@ -1069,7 +1151,6 @@ void perform_measures_localobs(Gauge_Conf *GC,
      fflush(datafilep);
    #endif
    }
-
 
 // perform local observables in the case of trace deformation, it computes all the order parameters
 void perform_measures_localobs_with_tracedef(Gauge_Conf const * const GC,

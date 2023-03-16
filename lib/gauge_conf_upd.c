@@ -1056,7 +1056,7 @@ void update_beta_pt_replica(Gauge_Conf* GC,
          // s = i * volume/2 + r
 			long r = s % ( (param->d_volume)/2 ); // site index
 			int i = (int) ( (s-r) / ( (param->d_volume)/2 ) ); // replica index
-			heatbath_beta_pt(GC, geo, param, i, r, dir);
+			heatbath(GC + i, geo, param + i, r, dir);
          }
 
       #ifdef OPENMP_MODE
@@ -1068,7 +1068,7 @@ void update_beta_pt_replica(Gauge_Conf* GC,
          long aux = s % ( (param->d_volume)/2 );
          long r = (param->d_volume/2) + aux; // site index
          int i = (int) ( (s-aux) / ( (param->d_volume)/2 ) ); // replica index
-         heatbath_beta_pt(GC, geo, param, i, r, dir);
+         heatbath(GC + i, geo, param + i, r, dir);
          }
       }
 
@@ -1089,7 +1089,7 @@ void update_beta_pt_replica(Gauge_Conf* GC,
             // s = i * volume/2 + r
 			   long r = s % ( (param->d_volume)/2 ); // site index
 			   int i = (int) ( (s-r) / ( (param->d_volume)/2 ) ); // replica index
-			   overrelaxation(GC + i, geo, param, r, dir);
+			   overrelaxation(GC + i, geo, param + i, r, dir);
             }
 
          #ifdef OPENMP_MODE
@@ -1101,7 +1101,7 @@ void update_beta_pt_replica(Gauge_Conf* GC,
             long aux = s % ( (param->d_volume)/2 );
             long r = (param->d_volume/2) + aux; // site index
             int i = (int) ( (s-aux) / ( (param->d_volume)/2 ) ); // replica index
-            overrelaxation(GC + i, geo, param, r, dir);
+            overrelaxation(GC + i, geo, param + i, r, dir);
             }
          }
       }
@@ -1122,6 +1122,75 @@ void update_beta_pt_replica(Gauge_Conf* GC,
       }
 }
 
+void beta_pt_swap(Gauge_Conf *GC,
+                  Geometry const * const geo,
+                  GParam const * const param,
+                  Acc_Utils* acc_counter)
+{
+   int num_swaps = param->d_N_replica_pt - 1;
+   double* metro_swap_prob;
+   int err = err=posix_memalign( (void **) &(metro_swap_prob), (size_t) DOUBLE_ALIGN, (size_t) num_swaps * sizeof(double));
+	if(err!=0)
+		{
+		fprintf(stderr, "Problems in allocating the acceptances array (%s, %d)\n", __FILE__, __LINE__);
+		exit(EXIT_FAILURE);
+		}
+   for(int k=0; k<num_swaps; k++)
+		metro_swap_prob[k]=0.0;
+
+	int is_even = num_swaps % 2;                   // check if num_swaps is even or not
+	int num_even = (long) ((num_swaps+is_even)/2); // number or swaps for even replica
+	int num_odd  = (long) ((num_swaps-is_even)/2); // number of swaps for odd replica
+
+   int is_even_first, num_swaps_1, num_swaps_2;
+   if( casuale() < 0.5 ) // first swap all even copies, then all odd copies 
+		{
+		is_even_first=0;
+		num_swaps_1=num_even;
+		num_swaps_2=num_odd;
+		}
+	else // first swap all odd copies, then all even copies 
+		{
+		is_even_first=1;
+		num_swaps_1=num_odd;
+		num_swaps_2=num_even;
+		}   
+   
+   double r_prob;
+   double a_plaq_s, a_plaq_t, b_plaq_s, b_plaq_t;
+   int t_plaq_num = (STDIM - 1) * param->d_volume; //the number of time plaqs
+	int s_plaq_num = t_plaq_num * (STDIM - 2) / 2;  //the number of space plaqs
+   int a_exch, b_exch; //to be exchanged
+   for (int swap = 0; swap < num_swaps_1; swap++) {
+      //swapping {2 * swap + is_eve_first} with {2 * swap + is_eve_first + 1}
+      a_exch = 2 * swap + is_even_first;
+      b_exch = 2 * swap + is_even_first + 1;
+      acc_counter->num_swap[a_exch]++;
+      plaquette(GC + b_exch, geo, param+b_exch, &b_plaq_s, &b_plaq_t);
+      plaquette(GC + a_exch, geo, param+a_exch, &a_plaq_s, &a_plaq_t);
+      r_prob = param[a_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
+      r_prob += param[b_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
+      r_prob -= param[a_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
+      r_prob -= param[b_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
+      //log(probability) = beta_a * (plaq_tot_b) + beta_b * (plaq_tot_a) - beta_a * (plaq_tot_a) - beta_b * (plaq_tot_b)
+      //I guess, at least...
+
+      if (log(casuale()) < r_prob) { //metro test
+         GAUGE_GROUP **aux;
+         aux=GC[a_exch].lattice;
+         GC[a_exch].lattice=GC[b_exch].lattice;
+         GC[b_exch].lattice=aux;
+         acc_counter->num_accepted_swap[a_exch]++; // increase counter of successfull swaps for replicas (a, a+1)
+
+         // swap of labels
+         int aux_label;
+         aux_label=GC[a_exch].conf_label;
+         GC[a_exch].conf_label=GC[b_exch].conf_label;
+         GC[b_exch].conf_label=aux_label;
+      }
+   }
+
+}                  
 
 // perform a complete update
 void update(Gauge_Conf * GC,

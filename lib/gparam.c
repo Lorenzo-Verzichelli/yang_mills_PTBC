@@ -1179,6 +1179,52 @@ void print_parameters_beta_pt(GParam const * const param, time_t time_start, tim
     fclose(fp);
 }
 
+void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
+    int err = posix_memalign((void**) param_dummy, DOUBLE_ALIGN, (size_t) param->d_N_replica_pt * sizeof(GParam));
+    if (err) {
+      fprintf(stderr, "Unable to allocate dummy params (%s, %d)", __FILE__, __LINE__);
+    }
+    for (int rep_index = 0; rep_index < param->d_N_replica_pt; rep_index++) {
+        for (int dir = 0; dir < STDIM; dir++)
+          (*param_dummy)[rep_index].d_size[dir] = param->d_size[dir];  
+        
+        (*param_dummy)[rep_index].d_beta = param->d_beta_pt[rep_index]; //ONLY DIFFERENCE
+        (*param_dummy)[rep_index].d_theta = param->d_theta;
+
+        (*param_dummy)[rep_index].d_sample = param->d_sample;
+        (*param_dummy)[rep_index].d_thermal = param->d_thermal;
+        (*param_dummy)[rep_index].d_overrelax = param->d_overrelax;
+        (*param_dummy)[rep_index].d_measevery = param->d_measevery;
+
+        (*param_dummy)[rep_index].d_start = param->d_start;
+        (*param_dummy)[rep_index].d_saveconf_back_every = param->d_saveconf_back_every;
+        (*param_dummy)[rep_index].d_saveconf_analysis_every = param->d_saveconf_analysis_every;
+        
+        (*param_dummy)[rep_index].d_N_replica_pt = param->d_N_replica_pt;
+        (*param_dummy)[rep_index].d_beta_pt = param->d_beta_pt;
+        (*param_dummy)[rep_index].d_beta_pt_swap_every = param->d_beta_pt_swap_every;
+
+        (*param_dummy)[rep_index].d_coolsteps = param->d_coolsteps;
+        (*param_dummy)[rep_index].d_coolrepeat = param->d_coolsteps;
+        (*param_dummy)[rep_index].d_chi_prime_meas = param->d_chi_prime_meas;
+        (*param_dummy)[rep_index].d_topcharge_tcorr_meas = param->d_topcharge_tcorr_meas;
+
+        strncpy((*param_dummy)[rep_index].d_conf_file, param->d_conf_file, STD_STRING_LENGTH);
+        strncpy((*param_dummy)[rep_index].d_data_file, param->d_data_file, STD_STRING_LENGTH);
+        strncpy((*param_dummy)[rep_index].d_chiprime_file, param->d_chiprime_file, STD_STRING_LENGTH);
+        strncpy((*param_dummy)[rep_index].d_topcharge_tcorr_file, param->d_topcharge_tcorr_file, STD_STRING_LENGTH);
+        strncpy((*param_dummy)[rep_index].d_log_file, param->d_log_file, STD_STRING_LENGTH);
+        strncpy((*param_dummy)[rep_index].d_swap_tracking_file, param->d_swap_tracking_file, STD_STRING_LENGTH);
+
+        (*param_dummy)[rep_index].d_randseed = param->d_randseed;
+
+        (*param_dummy)[rep_index].d_volume = param->d_volume;
+        (*param_dummy)[rep_index].d_inv_vol = param->d_inv_vol;
+        (*param_dummy)[rep_index].d_space_vol = param->d_space_vol;
+        (*param_dummy)[rep_index].d_inv_space_vol = param->d_inv_space_vol;
+    }
+}
+
 void print_parameters_local_pt(GParam const * const param, time_t time_start, time_t time_end)
     {
     FILE *fp;
@@ -1877,6 +1923,12 @@ void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_p
   param->d_beta_pt[0] = beta_min_pt;
   param->d_beta_pt[N_beta_m1];
   for (int i = 1; i < N_beta_m1; i++) param->d_beta_pt[i] = beta_min_pt + i * delta_beta;
+
+  if (param->d_topcharge_tcorr_meas != 0){
+    fprintf(stderr, "Beta parallel tempering dosent implement the measure of the correlator of the topological charge yet\n");
+    fprintf(stderr, "(%s, %d)\n", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
 }
 
 #endif

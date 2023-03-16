@@ -60,19 +60,23 @@ void real_main(char* in_file) {
 		exit(EXIT_FAILURE);
 	}
 
+	GParam* param_dummy;
+	beta_pt_init_dummies(&param, &param_dummy);
+
     // MONTECARLO BEGIN
     time(&time1);
 
     for(count = 0; count < param.d_sample; count++) {
-        update_beta_pt_replica(GC, &geo, &param);
+        update_beta_pt_replica(GC, &geo, param_dummy); //this should work
 		if(GC[0].update_index % param.d_measevery == 0 && GC[0].update_index >= param.d_thermal)
 		{
-			perform_measures_beta_pt_replica(GC, &geo, &param, datafilep, chiprimefilep, topchar_tcorr_filep);
+			perform_measures_beta_pt_replica(GC, &geo, &param, datafilep, chiprimefilep);
+			//should work, not parallelized
 		}
 
 		if (count % param.d_beta_pt_swap_every == 0) {
-			beta_pt_swap(GC, &geo, &param, &acc_counters);
-			print_conf_labels(swaptrackfilep, GC, &param);
+			beta_pt_swap(GC, &geo, &param, &acc_counters); //hopfully works (mildly parallelized)
+			print_conf_labels(swaptrackfilep, GC, &param); //unchanged
 		}
     }
 

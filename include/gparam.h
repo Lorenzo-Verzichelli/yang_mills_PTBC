@@ -116,5 +116,6 @@ void print_parameters_tube_conn(GParam * param, time_t time_start, time_t time_e
 void print_parameters_tube_conn_long(GParam * param, time_t time_start, time_t time_end);
 
 void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_pt);
+void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy);
 
 #endif
