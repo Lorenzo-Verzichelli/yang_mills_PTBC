@@ -1122,6 +1122,41 @@ void update_beta_pt_replica(Gauge_Conf* GC,
       }
 }
 
+void beta_pt_single_swap(int a_exch, int b_exch,
+                         Gauge_Conf* GC,
+                         Geometry const * const geo,
+                         GParam const * const param,
+                         Acc_Utils* acc_counter)
+{
+   double r_prob;
+   double a_plaq_s, a_plaq_t, b_plaq_s, b_plaq_t;
+   int t_plaq_num = (STDIM - 1) * param->d_volume; //the number of time plaqs
+	int s_plaq_num = t_plaq_num * (STDIM - 2) / 2;  //the number of space plaqs
+   acc_counter->num_swap[a_exch]++;
+   plaquette(GC + b_exch, geo, param+b_exch, &b_plaq_s, &b_plaq_t);
+   plaquette(GC + a_exch, geo, param+a_exch, &a_plaq_s, &a_plaq_t);
+   r_prob = param[a_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
+   r_prob += param[b_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
+   r_prob -= param[a_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
+   r_prob -= param[b_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
+   //log(probability) = beta_a * (plaq_tot_b) + beta_b * (plaq_tot_a) - beta_a * (plaq_tot_a) - beta_b * (plaq_tot_b)
+   //I guess, at least...
+
+   if (log(casuale()) < r_prob) { //metro test
+      GAUGE_GROUP **aux;
+      aux=GC[a_exch].lattice;
+      GC[a_exch].lattice=GC[b_exch].lattice;
+      GC[b_exch].lattice=aux;
+      acc_counter->num_accepted_swap[a_exch]++; // increase counter of successfull swaps for replicas (a, a+1)
+
+      // swap of labels
+      int aux_label;
+      aux_label=GC[a_exch].conf_label;
+      GC[a_exch].conf_label=GC[b_exch].conf_label;
+      GC[b_exch].conf_label=aux_label;
+   }
+}
+
 void beta_pt_swap(Gauge_Conf *GC,
                   Geometry const * const geo,
                   GParam const * const param,
@@ -1155,41 +1190,20 @@ void beta_pt_swap(Gauge_Conf *GC,
 		num_swaps_1=num_odd;
 		num_swaps_2=num_even;
 		}   
-   
-   double r_prob;
-   double a_plaq_s, a_plaq_t, b_plaq_s, b_plaq_t;
-   int t_plaq_num = (STDIM - 1) * param->d_volume; //the number of time plaqs
-	int s_plaq_num = t_plaq_num * (STDIM - 2) / 2;  //the number of space plaqs
+
    int a_exch, b_exch; //to be exchanged
    for (int swap = 0; swap < num_swaps_1; swap++) {
       //swapping {2 * swap + is_eve_first} with {2 * swap + is_eve_first + 1}
       a_exch = 2 * swap + is_even_first;
       b_exch = 2 * swap + is_even_first + 1;
-      acc_counter->num_swap[a_exch]++;
-      plaquette(GC + b_exch, geo, param+b_exch, &b_plaq_s, &b_plaq_t);
-      plaquette(GC + a_exch, geo, param+a_exch, &a_plaq_s, &a_plaq_t);
-      r_prob = param[a_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
-      r_prob += param[b_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
-      r_prob -= param[a_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
-      r_prob -= param[b_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
-      //log(probability) = beta_a * (plaq_tot_b) + beta_b * (plaq_tot_a) - beta_a * (plaq_tot_a) - beta_b * (plaq_tot_b)
-      //I guess, at least...
-
-      if (log(casuale()) < r_prob) { //metro test
-         GAUGE_GROUP **aux;
-         aux=GC[a_exch].lattice;
-         GC[a_exch].lattice=GC[b_exch].lattice;
-         GC[b_exch].lattice=aux;
-         acc_counter->num_accepted_swap[a_exch]++; // increase counter of successfull swaps for replicas (a, a+1)
-
-         // swap of labels
-         int aux_label;
-         aux_label=GC[a_exch].conf_label;
-         GC[a_exch].conf_label=GC[b_exch].conf_label;
-         GC[b_exch].conf_label=aux_label;
-      }
+      beta_pt_single_swap(a_exch, b_exch, GC, geo, param, acc_counter);
    }
-
+   is_even_first = 1 - is_even_first;
+   for (int swap = 0; swap < num_swaps_2; swap++) {
+      a_exch = 2 * swap + is_even_first;
+      b_exch = 2 * swap + is_even_first + 1;
+      beta_pt_single_swap(a_exch, b_exch, GC, geo, param, acc_counter);
+   }
 }                  
 
 // perform a complete update
