@@ -730,39 +730,6 @@ void heatbath(Gauge_Conf *GC,
   single_heatbath(&(GC->lattice[r][i]), &stap, param);
   }
 
-void heatbath_beta_pt(Gauge_Conf *GC,
-              Geometry const * const geo,
-              GParam const * const param,
-              int rep_index,
-              long site,
-              int dir)
-  {
-  #ifdef DEBUG
-  if(site >= param->d_volume)
-    {
-    fprintf(stderr, "r too large: %ld >= %ld (%s, %d)\n", site, param->d_volume, __FILE__, __LINE__);
-    exit(EXIT_FAILURE);
-    }
-  if(dir >= STDIM)
-    {
-    fprintf(stderr, "i too large: i=%d >= %d (%s, %d)\n", dir, STDIM, __FILE__, __LINE__);
-    exit(EXIT_FAILURE);
-    }
-  #endif
-
-  GAUGE_GROUP stap;
-
-  #ifndef THETA_MODE
-    calcstaples_wilson(GC, geo, param, site, dir, &stap);
-  #else
-    calcstaples_with_topo(GC, geo, param, site, dir, &stap);
-  #endif
-
-  //THIS WILL NEVER WORK! :(
-  single_heatbath_beta_pt(&(GC[rep_index].lattice[site][dir]), rep_index, &stap, param->d_beta_pt[rep_index]);
-  }
-
-
 // perform an update with overrelaxation
 void overrelaxation(Gauge_Conf *GC,
                     Geometry const * const geo,
@@ -1130,8 +1097,8 @@ void beta_pt_single_swap(int a_exch, int b_exch,
 {
    double r_prob;
    double a_plaq_s, a_plaq_t, b_plaq_s, b_plaq_t;
-   int t_plaq_num = (STDIM - 1) * param->d_volume; //the number of time plaqs
-	int s_plaq_num = t_plaq_num * (STDIM - 2) / 2;  //the number of space plaqs
+   double t_plaq_num = (double) ((STDIM - 1) * param->d_volume); //the number of time plaqs
+	double s_plaq_num = (double ) (t_plaq_num * (STDIM - 2) / 2);  //the number of space plaqs
    acc_counter->num_swap[a_exch]++;
    plaquette(GC + b_exch, geo, param+b_exch, &b_plaq_s, &b_plaq_t);
    plaquette(GC + a_exch, geo, param+a_exch, &a_plaq_s, &a_plaq_t);
@@ -1174,8 +1141,8 @@ void beta_pt_swap(Gauge_Conf *GC,
 		metro_swap_prob[k]=0.0;
 
 	int is_even = num_swaps % 2;                   // check if num_swaps is even or not
-	int num_even = (long) ((num_swaps+is_even)/2); // number or swaps for even replica
-	int num_odd  = (long) ((num_swaps-is_even)/2); // number of swaps for odd replica
+	int num_even = (num_swaps+is_even)/2; // number or swaps for even replica
+	int num_odd  = (num_swaps-is_even)/2; // number of swaps for odd replica
 
    int is_even_first, num_swaps_1, num_swaps_2;
    if( casuale() < 0.5 ) // first swap all even copies, then all odd copies 

@@ -1921,7 +1921,7 @@ void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_p
   int N_beta_m1 = param->d_N_replica_pt - 1;
   double delta_beta = (beta_max_pt - beta_min_pt) / (double) N_beta_m1;
   param->d_beta_pt[0] = beta_min_pt;
-  param->d_beta_pt[N_beta_m1];
+  param->d_beta_pt[N_beta_m1] = beta_max_pt;
   for (int i = 1; i < N_beta_m1; i++) param->d_beta_pt[i] = beta_min_pt + i * delta_beta;
 
   if (param->d_topcharge_tcorr_meas != 0){

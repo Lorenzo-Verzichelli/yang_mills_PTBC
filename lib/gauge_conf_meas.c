@@ -996,7 +996,7 @@ void perform_measures_beta_pt_replica(Gauge_Conf *GC_vec,
                                       FILE* datafilep, FILE* chiprimefilep)
 {
    for (int rep_index = 0; rep_index < param_vec->d_N_replica_pt; rep_index++) {
-     GParam* param = param_vec + rep_index;
+     GParam const * param = param_vec + rep_index;
      Gauge_Conf* GC = GC_vec + rep_index;
 #if( (STDIM==4 && NCOLOR>1) || (STDIM==2 && NCOLOR==1) )
      int i, err;

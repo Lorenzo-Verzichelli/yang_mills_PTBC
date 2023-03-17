@@ -18,6 +18,10 @@
 #include"../include/gparam.h"
 #include"../include/random.h"
 
+void print_template_input(void) {
+    //TO DO
+}
+
 void real_main(char* in_file) {
     Gauge_Conf *GC;
     Geometry geo;
@@ -43,6 +47,9 @@ void real_main(char* in_file) {
 
     // open data_file
 	init_data_file(&datafilep, &chiprimefilep, &topchar_tcorr_filep, &param);
+
+	// open swap tracking file
+	init_swap_track_file(&swaptrackfilep, &param);
 
 	// initialize geometry
 	init_indexing_lexeo();
@@ -74,11 +81,29 @@ void real_main(char* in_file) {
 			//should work, not parallelized
 		}
 
+		if (param.d_saveconf_back_every != 0) {
+			if (GC[0].update_index % param.d_saveconf_back_every == 0) {
+				write_replica_on_file_beta_pt(GC, &param);
+			}
+		}
+
+		if(param.d_saveconf_analysis_every!=0)
+        {
+         	if(GC[0].update_index % param.d_saveconf_analysis_every == 0 )
+           	{
+           		strcpy(name, param.d_conf_file);
+				strcat(name, "_step_");
+           		sprintf(aux, "%ld", GC[0].update_index);
+           		strcat(name, aux);
+           		write_conf_on_file_with_name(&(GC[0]), &param, name);
+           }
+        }
+
 		if (count % param.d_beta_pt_swap_every == 0) {
 			beta_pt_swap(GC, &geo, &param, &acc_counters); //hopfully works (mildly parallelized)
 			print_conf_labels(swaptrackfilep, GC, &param); //unchanged
 		}
-    }
+	}
 
     time(&time2);
     //MONTECARLO END
@@ -113,15 +138,15 @@ void real_main(char* in_file) {
 	end_swap_acc_arrays(&acc_counters, &param);
 }
 
-void print_template_input(void) {
-    //TO DO
-}
-
 int main (int argc, char **argv)
 {
 	char in_file[STD_STRING_LENGTH];
 	if(argc != 2)
 	{
+		printf("\nSU(N) Beta Parallel Tempering implemented by Claudio Bonanno (claudiobonanno93@gmail.com) within yang-mills package\n");
+		printf("Usage: %s input_file\n\n", argv[0]);
+
+		printf("\nDetails about yang-mills package:\n");
 		printf("\nPackage %s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
 		printf("Claudio Bonati %s\n", PACKAGE_BUGREPORT);
 		printf("Usage: %s input_file\n\n", argv[0]);

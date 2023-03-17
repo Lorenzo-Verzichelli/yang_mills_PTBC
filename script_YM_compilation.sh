@@ -2,7 +2,7 @@
 
 NCOLORS=3
 NTHREADS=1
-compile_targets='yang_mills_local yang_mills_local_pt yang_mills_local_pt_multicanonic conf_check yang_mills_t0 yang_mills_gradient_flow'
+compile_targets='yang_mills_local_beta_pt'
 
 # 1=yes, 0=no
 ENABLE_THETA=0
@@ -17,10 +17,10 @@ chmod +x configure
 if [ -d lib/.deps ]; then make clean; fi
 
 # standard configuration with gcc + standard -O3 optimizations
-#./configure N_c=${NCOLORS} Num_threads=${NTHREADS} CC=gcc CFLAGS='-O3' ${flag_openmp} ${flag_theta}
+./configure N_c=${NCOLORS} Num_threads=${NTHREADS} CC=gcc CFLAGS='-O3' ${flag_openmp} ${flag_theta}
 
 # optimized configuration for Marconi (optimized compilation with Intel compiler on Intel Skylake processors)
-./configure N_c=${NCOLORS} Num_threads=${NTHREADS} CC=icc CFLAGS='-O3 -axCORE-AVX512 -mtune=skylake -ip -ipo' LIBS="-ldl -lz -lc" ${flag_openmp} ${flag_theta}
+#./configure N_c=${NCOLORS} Num_threads=${NTHREADS} CC=icc CFLAGS='-O3 -axCORE-AVX512 -mtune=skylake -ip -ipo' LIBS="-ldl -lz -lc" ${flag_openmp} ${flag_theta}
 
 # optimized configuration for Galileo100 (optimized compilation with Intel compiler on Intel Cascadelake processors)
 #./configure N_c=${NCOLORS} Num_threads=${NTHREADS} CC=icc CFLAGS='-O3 -axCORE-AVX512 -mtune=cascadelake -ip -ipo' LIBS="-ldl -lz -lc" ${flag_openmp} ${flag_theta}

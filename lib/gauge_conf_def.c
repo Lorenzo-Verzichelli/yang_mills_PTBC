@@ -245,8 +245,8 @@ void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * 
       fprintf(stderr, "Error in reading the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
       exit(EXIT_FAILURE);
     }
-    if (abs(beta_read - param->d_beta_pt[rep_index]) > MIN_VALUE) {
-      fprintf(stderr, "While reading replica conf from file %s: beta not matching\n", filename, __FILE__, __LINE__);
+    if (fabs(beta_read - param->d_beta_pt[rep_index]) > MIN_VALUE) {
+      fprintf(stderr, "While reading replica conf from file %s: beta not matching (%s, %d)\n", filename, __FILE__, __LINE__);
       fprintf(stderr, "Compared values were %.15f and %.15f, are they close?", beta_read, param->d_beta_pt[rep_index]);
       exit(EXIT_FAILURE);
     }
