@@ -1159,14 +1159,21 @@ void beta_pt_swap(Gauge_Conf *GC,
 		}   
 
    int a_exch, b_exch; //to be exchanged
-   for (int swap = 0; swap < num_swaps_1; swap++) {
+   int swap;
+   #ifdef OPENMP_MODE
+	#pragma omp parallel for num_threads(NTHREADS) private(swap)
+	#endif
+   for (swap = 0; swap < num_swaps_1; swap++) {
       //swapping {2 * swap + is_eve_first} with {2 * swap + is_eve_first + 1}
       a_exch = 2 * swap + is_even_first;
       b_exch = 2 * swap + is_even_first + 1;
       beta_pt_single_swap(a_exch, b_exch, GC, geo, param, acc_counter);
    }
    is_even_first = 1 - is_even_first;
-   for (int swap = 0; swap < num_swaps_2; swap++) {
+   #ifdef OPENMP_MODE
+	#pragma omp parallel for num_threads(NTHREADS) private(swap)
+	#endif
+   for (swap = 0; swap < num_swaps_2; swap++) {
       a_exch = 2 * swap + is_even_first;
       b_exch = 2 * swap + is_even_first + 1;
       beta_pt_single_swap(a_exch, b_exch, GC, geo, param, acc_counter);

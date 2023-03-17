@@ -728,6 +728,55 @@ void topcharge_timeslices_cooling(Gauge_Conf const * const GC,
 	free(sum_q_timeslices);
 }
 
+void topcharge_timeslices_cooling_beta_pt(Gauge_Conf const * const GC_vec,
+                                          Geometry const * const geo,
+                                          GParam const * const param_vec, FILE *topchar_tcorr_filep)
+{
+	if(!(STDIM==4 && NCOLOR>1) && !(STDIM==2 && NCOLOR==1) )
+	{
+		fprintf(stderr, "Wrong number of dimensions or number of colors! (%s, %d)\n", __FILE__, __LINE__);
+		exit(EXIT_FAILURE);
+	}
+for (int rep_index = 0; rep_index < param_vec->d_N_replica_pt; rep_index++) {
+   Gauge_Conf const * GC = GC_vec + rep_index;
+   GParam const * param = param_vec + rep_index;
+	
+	double *sum_q_timeslices;
+
+	int err=posix_memalign((void**) &(sum_q_timeslices), (size_t) DOUBLE_ALIGN, (size_t) param->d_size[0]*sizeof(double));
+	if(err!=0)
+	{
+		fprintf(stderr, "Problems in allocating the aux vector for topcharge tcorr meas! (%s, %d)\n", __FILE__, __LINE__);
+		exit(EXIT_FAILURE);
+	}	
+
+	if(param->d_coolsteps>0)  // if using cooling
+	{  
+		Gauge_Conf helperconf;
+		int iter;
+
+		// measure no cooling
+      fprintf(topchar_tcorr_filep, "    beta = %.12g\n", param->d_beta);
+		topcharge_timeslices(GC, geo, param, sum_q_timeslices, 0, topchar_tcorr_filep); 
+		// conf that will be cooled
+		init_gauge_conf_from_gauge_conf(&helperconf, GC, param); // helperconf is a copy of the configuration
+		// measure with cooling
+		for(iter=0; iter<(param->d_coolrepeat); iter++)
+		{
+			cooling(&helperconf, geo, param, param->d_coolsteps);
+			topcharge_timeslices(&helperconf, geo, param, sum_q_timeslices, (iter+1)*param->d_coolsteps, topchar_tcorr_filep);
+		}
+		free_gauge_conf(&helperconf, param);
+		fflush(topchar_tcorr_filep);
+	}
+	else // no cooling
+	{
+		topcharge_timeslices(GC, geo, param, sum_q_timeslices, 0, topchar_tcorr_filep);
+		fflush(topchar_tcorr_filep);
+	}
+	free(sum_q_timeslices);
+}
+}
 
 // compute topological observables (Q, chi_prime) after some cooling
 // in the cooling procedure the action at theta=0 is minimized

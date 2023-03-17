@@ -1923,12 +1923,6 @@ void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_p
   param->d_beta_pt[0] = beta_min_pt;
   param->d_beta_pt[N_beta_m1] = beta_max_pt;
   for (int i = 1; i < N_beta_m1; i++) param->d_beta_pt[i] = beta_min_pt + i * delta_beta;
-
-  if (param->d_topcharge_tcorr_meas != 0){
-    fprintf(stderr, "Beta parallel tempering dosent implement the measure of the correlator of the topological charge yet\n");
-    fprintf(stderr, "(%s, %d)\n", __FILE__, __LINE__);
-    exit(EXIT_FAILURE);
-  }
 }
 
 #endif

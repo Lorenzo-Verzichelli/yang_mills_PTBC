@@ -18,9 +18,7 @@
 #include"../include/gparam.h"
 #include"../include/random.h"
 
-void print_template_input(void) {
-    //TO DO
-}
+void print_template_input(void);
 
 void real_main(char* in_file) {
     Gauge_Conf *GC;
@@ -79,6 +77,8 @@ void real_main(char* in_file) {
 		{
 			perform_measures_beta_pt_replica(GC, &geo, &param, datafilep, chiprimefilep);
 			//should work, not parallelized
+			if (param.d_topcharge_tcorr_meas == 1 )
+				topcharge_timeslices_cooling_beta_pt(GC, &geo, param_dummy, topchar_tcorr_filep);
 		}
 
 		if (param.d_saveconf_back_every != 0) {
@@ -123,7 +123,7 @@ void real_main(char* in_file) {
       }
 
     // print simulation details
-    print_parameters_local_pt(&param, time1, time2);
+    print_parameters_beta_pt(&param, time1, time2);
 		
 	// print acceptances of parallel tempering
 	print_acceptances(&acc_counters, &param);
@@ -198,6 +198,50 @@ int main (int argc, char **argv)
 	}
 	real_main(in_file);
 	return EXIT_SUCCESS;
+}
+
+void print_template_input(void) {  //think thi is ok
+	FILE* fp = fopen("template_input.example", "w");
+	if (fp == NULL) {
+		fprintf(stderr, "Unable to create template input file(%s, %d)\n", __FILE__, __LINE__);
+		// exit(EXIT_FAILURE);
+	}
+
+	fprintf(fp,"size 4 4 4 4  # Nt Nx Ny Nz\n");
+    fprintf(fp,"\n");
+	fprintf(fp,"# parallel tempering parameters\n");
+	fprintf(fp, "N_replica_beta_pt        8   # number of replicas with different beta\n");
+	fprintf(fp, "beta_min_pt              4.0 # lowest beta\n");
+	fprintf(fp, "beta_max_pt              6.0 # highest beta\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "theta                    5.0 # immaginary theta couled to topo charge\n");
+	fprintf(fp,"\n");
+    fprintf(fp, "sample                   10  # number of sample generated\n");
+    fprintf(fp, "thermal                  0   # number of sample discarted\n");
+    fprintf(fp, "overrelax                5   # overrelaxation steps between samples\n");
+    fprintf(fp, "measevery                1   # number of samples between measures\n");
+	fprintf(fp, "beta_pt_swap_every       5   # number of samples between pt swap\n");
+	fprintf(fp,"\n");
+    fprintf(fp, "start 0                      # 0=ordered  1=random  2=from saved configuration\n");
+    fprintf(fp, "saveconf_back_every      5   # if 0 does not save, else save backup configurations every ... updates\n");
+    fprintf(fp, "saveconf_analysis_every  5   # if 0 does not save, else save configurations for analysis every ... updates\n");
+    fprintf(fp, "\n");
+	fprintf(fp, "coolsteps                3   # number of cooling steps to be used\n");
+	fprintf(fp, "coolrepeat               5   # number of times 'coolsteps' are repeated\n");
+	fprintf(fp, "chi_prime_meas           0   # 1=YES, 0=NO\n");
+	fprintf(fp, "topcharge_tcorr_meas     0   # 1=YES, 0=NO\n");
+	fprintf(fp,"\n");
+    fprintf(fp, "# output files\n");
+	fprintf(fp, "conf_file                conf.dat\n");
+	fprintf(fp, "data_file                dati.dat\n");
+	fprintf(fp, "chiprime_data_file       chiprime_cool.dat\n");
+	fprintf(fp, "topcharge_tcorr_file     topo_tcorr_cool.dat\n");
+	fprintf(fp, "log_file                 log.dat\n");
+	fprintf(fp, "swap_acc_file            swap_acc.dat\n");
+	fprintf(fp, "swap_track_file          swap_track.dat\n");
+    fprintf(fp, "\n");
+    fprintf(fp, "randseed 0    # (0=time)\n");
+    fclose(fp);
 }
 
 #endif

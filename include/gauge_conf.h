@@ -211,6 +211,9 @@ void topcharge_timeslices(Gauge_Conf const * const GC,
 void topcharge_timeslices_cooling(Gauge_Conf const * const GC,
                  Geometry const * const geo,
                  GParam const * const param, FILE*);
+void topcharge_timeslices_cooling_beta_pt(Gauge_Conf const * const GC_vec,
+                                          Geometry const * const geo,
+                                          GParam const * const param_vec, FILE *topchar_tcorr_filep);
 double topo_chi_prime(Gauge_Conf const * const GC,
                  Geometry const * const geo,
                  GParam const * const param);
