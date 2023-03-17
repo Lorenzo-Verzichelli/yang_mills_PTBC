@@ -411,6 +411,11 @@ void update(Gauge_Conf *GC,
 void update_beta_pt_replica(Gauge_Conf* GC,
                        Geometry const * const geo,
                        GParam const * const param);
+void beta_pt_single_swap(int a_exch, int b_exch,
+                         Gauge_Conf* GC,
+                         Geometry const * const geo,
+                         GParam const * const param,
+                         Acc_Utils* acc_counter);
 void beta_pt_swap(Gauge_Conf *GC,
                   Geometry const * const geo,
                   GParam const * const param,
