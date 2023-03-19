@@ -1225,6 +1225,14 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
     }
 }
 
+void beta_pt_free_param(GParam* param, GParam* param_dummy) {
+  free(param->d_beta_pt);
+  for (int rep_index = 0; rep_index < param->d_N_replica_pt; rep_index++){
+    free(param_dummy[rep_index].d_beta_pt);
+  }
+  free(param_dummy);
+}
+
 void print_parameters_local_pt(GParam const * const param, time_t time_start, time_t time_end)
     {
     FILE *fp;

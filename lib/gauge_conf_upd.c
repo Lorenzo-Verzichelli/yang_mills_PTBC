@@ -1085,43 +1085,24 @@ void update_beta_pt_replica(Gauge_Conf* GC,
       for(dir=0; dir<STDIM; dir++)
          {
          unitarize(&(GC[i].lattice[r][dir]));
-         } 
+         }
       }
 }
 
-void beta_pt_single_swap(int a_exch, int b_exch,
-                         Gauge_Conf* GC,
-                         Geometry const * const geo,
-                         GParam const * const param,
-                         Acc_Utils* acc_counter)
-{
-   double r_prob;
-   double a_plaq_s, a_plaq_t, b_plaq_s, b_plaq_t;
-   double t_plaq_num = (double) ((STDIM - 1) * param->d_volume); //the number of time plaqs
-	double s_plaq_num = (double ) (t_plaq_num * (STDIM - 2) / 2);  //the number of space plaqs
-   acc_counter->num_swap[a_exch]++;
-   plaquette(GC + b_exch, geo, param+b_exch, &b_plaq_s, &b_plaq_t);
-   plaquette(GC + a_exch, geo, param+a_exch, &a_plaq_s, &a_plaq_t);
-   r_prob = param[a_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
-   r_prob += param[b_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
-   r_prob -= param[a_exch].d_beta * (t_plaq_num * a_plaq_t + s_plaq_num * a_plaq_s);
-   r_prob -= param[b_exch].d_beta * (t_plaq_num * b_plaq_t + s_plaq_num * b_plaq_s);
-   //log(probability) = beta_a * (plaq_tot_b) + beta_b * (plaq_tot_a) - beta_a * (plaq_tot_a) - beta_b * (plaq_tot_b)
-   //I guess, at least...
-
-   if (log(casuale()) < r_prob) { //metro test
-      GAUGE_GROUP **aux;
-      aux=GC[a_exch].lattice;
-      GC[a_exch].lattice=GC[b_exch].lattice;
-      GC[b_exch].lattice=aux;
-      acc_counter->num_accepted_swap[a_exch]++; // increase counter of successfull swaps for replicas (a, a+1)
-
-      // swap of labels
-      int aux_label;
-      aux_label=GC[a_exch].conf_label;
-      GC[a_exch].conf_label=GC[b_exch].conf_label;
-      GC[b_exch].conf_label=aux_label;
+double delta_site_plaq_beta_pt(Gauge_Conf const * const GC,
+                          Geometry const * const geo,
+                          GParam const * const param,
+                          int a_exch, int b_exch,
+                          long site){
+   int i, j; //space-time index
+   double delta_plaq = 0;
+   for (i = 0; i < STDIM; i++) {
+      for (j = i+1; j < STDIM; j++) {
+         delta_plaq += plaquettep(GC + b_exch, geo, param + b_exch, site, i, j);
+         delta_plaq -= plaquettep(GC + a_exch, geo, param + a_exch, site, i, j);
+      }
    }
+   return delta_plaq;
 }
 
 void beta_pt_swap(Gauge_Conf *GC,
@@ -1158,25 +1139,53 @@ void beta_pt_swap(Gauge_Conf *GC,
 		num_swaps_2=num_even;
 		}   
 
-   int a_exch, b_exch; //to be exchanged
+   long s;
    int swap;
+   #ifdef OPENMP_MODE
+	#pragma omp parallel for num_threads(NTHREADS) reduction(+:metro_swap_prob[:num_swaps]) private(s, swap)
+	#endif
+   for (s = 0; s < num_swaps_1 * (param->d_volume); s++) {
+      long site = s / param->d_volume;
+      swap = (int) (s % param->d_volume);
+      int a_exch = 2 * swap + is_even_first;
+      int b_exch = a_exch + 1;
+
+      metro_swap_prob[a_exch] += delta_plaq_site_beta_pt(GC, geo, param, a_exch, b_exch, site);
+      //sum on space time index inside the function
+   }
    #ifdef OPENMP_MODE
 	#pragma omp parallel for num_threads(NTHREADS) private(swap)
 	#endif
    for (swap = 0; swap < num_swaps_1; swap++) {
       //swapping {2 * swap + is_eve_first} with {2 * swap + is_eve_first + 1}
-      a_exch = 2 * swap + is_even_first;
-      b_exch = 2 * swap + is_even_first + 1;
-      beta_pt_single_swap(a_exch, b_exch, GC, geo, param, acc_counter);
+      int a_exch = 2 * swap + is_even_first;
+      int b_exch = a_exch + 1;
+      metro_swap_prob[a_exch] *= param[a_exch].d_beta - param[b_exch].d_beta;
+      metropolis_single_swap(GC, a_exch, b_exch, metro_swap_prob[a_exch], acc_counter);
    }
+
    is_even_first = 1 - is_even_first;
+   #ifdef OPENMP_MODE
+	#pragma omp parallel for num_threads(NTHREADS) reduction(+:metro_swap_prob[:num_swaps]) private(s, swap)
+	#endif
+   for (s = 0; s < num_swaps_2 * (param->d_volume); s++) {
+      long site = s / param->d_volume;
+      swap = (int) (s % param->d_volume);
+      int a_exch = 2 * swap + is_even_first;
+      int b_exch = a_exch + 1;
+
+      metro_swap_prob[a_exch] += delta_plaq_site_beta_pt(GC, geo, param, a_exch, b_exch, site);
+      //sum on space time index inside the function
+   }
    #ifdef OPENMP_MODE
 	#pragma omp parallel for num_threads(NTHREADS) private(swap)
 	#endif
    for (swap = 0; swap < num_swaps_2; swap++) {
-      a_exch = 2 * swap + is_even_first;
-      b_exch = 2 * swap + is_even_first + 1;
-      beta_pt_single_swap(a_exch, b_exch, GC, geo, param, acc_counter);
+      //swapping {2 * swap + is_eve_first} with {2 * swap + is_eve_first + 1}
+      int a_exch = 2 * swap + is_even_first;
+      int b_exch = a_exch + 1;
+      metro_swap_prob[a_exch] *= param[a_exch].d_beta - param[b_exch].d_beta;
+      metropolis_single_swap(GC, a_exch, b_exch, metro_swap_prob[a_exch], acc_counter);
    }
 }                  
 

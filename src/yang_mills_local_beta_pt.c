@@ -25,8 +25,7 @@ void real_main(char* in_file) {
     Geometry geo;
     GParam param;
     Acc_Utils acc_counters;
-
-    char name[STD_STRING_LENGTH], aux[STD_STRING_LENGTH];
+	
     int count;
     FILE *datafilep, *chiprimefilep, *swaptrackfilep, *topchar_tcorr_filep;
     time_t time1, time2;
@@ -84,23 +83,20 @@ void real_main(char* in_file) {
 		if (param.d_saveconf_back_every != 0) {
 			if (GC[0].update_index % param.d_saveconf_back_every == 0) {
 				write_replica_on_file_beta_pt(GC, &param);
+				write_replica_on_file_back_beta_pt(GC, &param); 
 			}
 		}
-
+		//TO DO: save for analysis every replica!
 		if(param.d_saveconf_analysis_every!=0)
         {
          	if(GC[0].update_index % param.d_saveconf_analysis_every == 0 )
            	{
-           		strcpy(name, param.d_conf_file);
-				strcat(name, "_step_");
-           		sprintf(aux, "%ld", GC[0].update_index);
-           		strcat(name, aux);
-           		write_conf_on_file_with_name(&(GC[0]), &param, name);
+           		write_replica_on_file_analysis_beta_pt(GC, &param);
            }
         }
 
-		if (count % param.d_beta_pt_swap_every == 0) {
-			beta_pt_swap(GC, &geo, &param, &acc_counters); //hopfully works (mildly parallelized)
+		if ((param.d_beta_pt_swap_every != 0) && (count % param.d_beta_pt_swap_every == 0)) {
+			beta_pt_swap(GC, &geo, &param, &acc_counters); // Now should work
 			print_conf_labels(swaptrackfilep, GC, &param); //unchanged
 		}
 	}
@@ -110,8 +106,8 @@ void real_main(char* in_file) {
 
     // close data file
     fclose(datafilep);
-		if (param.d_chi_prime_meas==1) fclose(chiprimefilep);
-		if (param.d_topcharge_tcorr_meas==1) fclose(topchar_tcorr_filep);
+	if (param.d_chi_prime_meas==1) fclose(chiprimefilep);
+	if (param.d_topcharge_tcorr_meas==1) fclose(topchar_tcorr_filep);
 
     // close swap tracking file
 	if (param.d_N_replica_pt > 1) fclose(swaptrackfilep);
@@ -136,6 +132,9 @@ void real_main(char* in_file) {
 
     // free acceptances array
 	end_swap_acc_arrays(&acc_counters, &param);
+
+	//free param_dummy and pointer to betas
+	beta_pt_free_param(&param, param_dummy);
 }
 
 int main (int argc, char **argv)

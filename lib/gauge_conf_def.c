@@ -659,6 +659,44 @@ void write_replica_on_file(Gauge_Conf const * const GC, GParam const * const par
 		}
 	}
 
+void write_replica_on_file_back_beta_pt(Gauge_Conf const * const GC, GParam const * const param)
+  {
+    static int counter = 0;
+    int i;
+
+	#ifdef OPENMP_MODE
+	#pragma omp parallel for num_threads(NTHREADS) private(i)
+	#endif	
+	for(i=0; i<param->d_N_replica_pt; i++)
+	{
+		char filename[STD_STRING_LENGTH], replica_index[STD_STRING_LENGTH];
+		strcpy(filename,param->d_conf_file);
+		strcat(filename,"_replica_");
+		sprintf(replica_index, "%d_back%d", i, counter);
+		strcat(filename,replica_index); // filename = d_conf_file + "_replica_${i}"
+
+		write_conf_on_file_with_name_beta_pt(&(GC[i]), param, filename, i);
+		}
+  counter = 1 - counter;
+  }
+
+void write_replica_on_file_analysis_beta_pt(Gauge_Conf const * const GC, GParam const * const param) {
+  int i;
+  #ifdef OPENMP_MODE
+	#pragma omp parallel for num_threads(NTHREADS) private(i)
+	#endif	
+	for(i=0; i<param->d_N_replica_pt; i++)
+	{
+		char filename[STD_STRING_LENGTH], replica_index[STD_STRING_LENGTH];
+		strcpy(filename,param->d_conf_file);
+		strcat(filename,"_replica_");
+		sprintf(replica_index, "%d_sample_%ld", i, GC->update_index);
+		strcat(filename,replica_index); // filename = d_conf_file + "_replica_${i}"
+
+		write_conf_on_file_with_name_beta_pt(&(GC[i]), param, filename, i);
+		}
+}
+
   void write_replica_on_file_beta_pt(Gauge_Conf const * const GC, GParam const * const param)
   {
     	int i;
