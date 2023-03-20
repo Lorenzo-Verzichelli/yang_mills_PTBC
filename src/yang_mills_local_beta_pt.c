@@ -96,7 +96,7 @@ void real_main(char* in_file) {
         }
 
 		if (param.d_beta_pt_swap_every != 0) if (count % param.d_beta_pt_swap_every == 0) {
-			beta_pt_swap(GC, &geo, &param, &acc_counters); // Now should work
+			beta_pt_swap(GC, &geo, param_dummy, &acc_counters); // Now should work
 			print_conf_labels(swaptrackfilep, GC, &param); //unchanged
 		}
 	}
