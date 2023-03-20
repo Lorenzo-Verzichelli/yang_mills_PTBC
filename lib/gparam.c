@@ -85,10 +85,9 @@ void readinput(char *in_file, GParam *param)
 		param->d_L_defect[i]=0;
 		}
 		param->d_N_replica_pt=1;
-    int beta_pt_flag = 0;
-    double beta_min_pt = -1, beta_max_pt = -1;
+    param->d_beta_max_pt = -1;
+    param->d_beta_min_pt = -1;
     param->d_beta_pt_swap_every = 1;
-    param->d_beta_pt = NULL;
 		
 		// default = do not compute chi_prime
 		param->d_chi_prime_meas = 0;
@@ -552,25 +551,26 @@ void readinput(char *in_file, GParam *param)
                     exit(EXIT_FAILURE);
                     }
                   param->d_N_replica_pt = temp_i;
-                  beta_pt_flag = 1;
                   }
            else if(strncmp(str, "beta_min_pt", 11) == 0)
                   {
-                  err = fscanf(input, "%lf", &beta_min_pt);
+                  err = fscanf(input, "%lf", &temp_d);
                   if(err!=1)
                     {
                     fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
                     exit(EXIT_FAILURE);
                     }
+                  param->d_beta_min_pt = temp_d;
                   }
            else if(strncmp(str, "beta_max_pt", 11) == 0)
                   {
-                  err = fscanf(input, "%lf", &beta_max_pt);
+                  err = fscanf(input, "%lf", &temp_d);
                   if(err!=1)
                     {
                     fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
                     exit(EXIT_FAILURE);
                     }
+                  param->d_beta_max_pt = temp_d;
                   }
            else if(strncmp(str, "beta_pt_swap_every", 18) == 0)
                   {
@@ -779,8 +779,6 @@ void readinput(char *in_file, GParam *param)
 				fprintf(stderr, "Error: number of replica of parallel tempering must be greater than 0 (%s, %d)\n", __FILE__, __LINE__);
 				exit(EXIT_FAILURE);
 				}
-
-      if (beta_pt_flag) beta_pt_init_and_check(param, beta_min_pt, beta_max_pt);
 
       init_derived_constants(param);
       }
@@ -1140,8 +1138,8 @@ void print_parameters_beta_pt(GParam const * const param, time_t time_start, tim
 //specific beta pt part
     fprintf(fp, "\n\n");
     fprintf(fp,"number of copies used in beta parallel tempering: %d\n", param->d_N_replica_pt);
-    fprintf(fp,"values of beta:\n");
-    for (int i = 0; i < param->d_N_replica_pt; i++) fprintf(fp, "%.15f ", param->d_beta_pt[i]);
+    fprintf(fp, "beta minimum: %.15f\n", param->d_beta_min_pt);
+    fprintf(fp, "beta maximum: %.15f\n", param->d_beta_max_pt);
     fprintf(fp, "\nSwap every %d sweep in each replica\n", param->d_beta_pt_swap_every);
     fprintf(fp, "\n\n");
 //end of specific part
@@ -1184,11 +1182,12 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
     if (err) {
       fprintf(stderr, "Unable to allocate dummy params (%s, %d)", __FILE__, __LINE__);
     }
+    double delta_beta = (param->d_beta_max_pt - param->d_beta_min_pt) / (param->d_N_replica_pt - 1);
     for (int rep_index = 0; rep_index < param->d_N_replica_pt; rep_index++) {
         for (int dir = 0; dir < STDIM; dir++)
           (*param_dummy)[rep_index].d_size[dir] = param->d_size[dir];  
         
-        (*param_dummy)[rep_index].d_beta = param->d_beta_pt[rep_index]; //ONLY DIFFERENCE
+        (*param_dummy)[rep_index].d_beta = param->d_beta_min_pt + rep_index * delta_beta; //ONLY DIFFERENCE
         (*param_dummy)[rep_index].d_theta = param->d_theta;
 
         (*param_dummy)[rep_index].d_sample = param->d_sample;
@@ -1201,7 +1200,6 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
         (*param_dummy)[rep_index].d_saveconf_analysis_every = param->d_saveconf_analysis_every;
         
         (*param_dummy)[rep_index].d_N_replica_pt = param->d_N_replica_pt;
-        (*param_dummy)[rep_index].d_beta_pt = param->d_beta_pt;
         (*param_dummy)[rep_index].d_beta_pt_swap_every = param->d_beta_pt_swap_every;
 
         (*param_dummy)[rep_index].d_coolsteps = param->d_coolsteps;
@@ -1223,14 +1221,8 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
         (*param_dummy)[rep_index].d_space_vol = param->d_space_vol;
         (*param_dummy)[rep_index].d_inv_space_vol = param->d_inv_space_vol;
     }
-}
-
-void beta_pt_free_param(GParam* param, GParam* param_dummy) {
-  free(param->d_beta_pt);
-  for (int rep_index = 0; rep_index < param->d_N_replica_pt; rep_index++){
-    free(param_dummy[rep_index].d_beta_pt);
-  }
-  free(param_dummy);
+    (*param_dummy)[0].d_beta = param->d_beta_min_pt;
+    (*param_dummy)[param->d_N_replica_pt].d_beta = param->d_beta_max_pt;
 }
 
 void print_parameters_local_pt(GParam const * const param, time_t time_start, time_t time_end)
@@ -1903,17 +1895,17 @@ void print_parameters_tube_conn_long(GParam * param, time_t time_start, time_t t
     fclose(fp);
     }
 
-void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_pt) {
+void beta_pt_init_and_check(GParam* param) {
   if (param->d_N_replica_pt <= 1) {
     fprintf(stderr, "Number of parallel tempering in beta set to %d. Presumably an error?\n", param->d_N_replica_pt);
     fprintf(stderr, "(%s, %d)\n", __FILE__, __LINE__);
     exit(EXIT_FAILURE);
   }
-  if (beta_min_pt <= 0) {
+  if (param->d_beta_max_pt <= 0) {
     fprintf(stderr, "For beta parallel tempering: beta min <= 0 (%s, %d)\n", __FILE__, __LINE__);
     exit(EXIT_FAILURE);
   }
-  if (beta_min_pt >= beta_max_pt) {
+  if (param->d_beta_min_pt >= param->d_beta_max_pt) {
     fprintf(stderr, "For beta parallel tempering: beta min >= beta max (%s, %d)\n", __FILE__, __LINE__);
     exit(EXIT_FAILURE);
   }
@@ -1921,16 +1913,6 @@ void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_p
     fprintf(stderr, "For beta parallel tempering: swap every < 0 (%s, %d)\n", __FILE__, __LINE__);
     exit(EXIT_FAILURE);
   }
-  int err = posix_memalign((void**) &(param->d_beta_pt), DOUBLE_ALIGN, (size_t) param->d_N_replica_pt * sizeof(double));
-  if (err) {
-    fprintf(stderr, "Problems allocating array of betas for beta parallel tempering (%s, %d)\n", __FILE__, __LINE__);
-    exit(EXIT_FAILURE);
-  }
-  int N_beta_m1 = param->d_N_replica_pt - 1;
-  double delta_beta = (beta_max_pt - beta_min_pt) / (double) N_beta_m1;
-  param->d_beta_pt[0] = beta_min_pt;
-  param->d_beta_pt[N_beta_m1] = beta_max_pt;
-  for (int i = 1; i < N_beta_m1; i++) param->d_beta_pt[i] = beta_min_pt + i * delta_beta;
 }
 
 #endif

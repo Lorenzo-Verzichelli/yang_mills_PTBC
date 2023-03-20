@@ -17,7 +17,8 @@ typedef struct GParam {
   double d_theta;
 
   //beta parallel tempering
-  double* d_beta_pt;
+  double d_beta_min_pt;
+  double d_beta_max_pt;
   int d_beta_pt_swap_every;
 	
 	// parallel tempering parameters
@@ -115,8 +116,7 @@ void print_parameters_tube_disc(GParam * param, time_t time_start, time_t time_e
 void print_parameters_tube_conn(GParam * param, time_t time_start, time_t time_end);
 void print_parameters_tube_conn_long(GParam * param, time_t time_start, time_t time_end);
 
-void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_pt);
+void beta_pt_init_and_check(GParam* param);
 void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy);
-void beta_pt_free_param(GParam* param, GParam* param_dummy);
 
 #endif

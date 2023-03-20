@@ -185,11 +185,11 @@ void init_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * 
 
   if(param->d_start==2) // initialize from stored conf
     {
-    read_gauge_conf_from_file_with_name_beta_pt(GC, param, filename, rep_index);
+    read_gauge_conf_from_file_with_name_beta_pt(GC, param, filename);
     }
   }
 
-void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename, int rep_index)
+void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename)
   {
   FILE *fp;
   int i, dimension, tmp_i;
@@ -245,9 +245,9 @@ void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * 
       fprintf(stderr, "Error in reading the file %s (%s, %d)\n", filename, __FILE__, __LINE__);
       exit(EXIT_FAILURE);
     }
-    if (fabs(beta_read - param->d_beta_pt[rep_index]) > MIN_VALUE) {
+    if (fabs(beta_read - param->d_beta) > MIN_VALUE) {
       fprintf(stderr, "While reading replica conf from file %s: beta not matching (%s, %d)\n", filename, __FILE__, __LINE__);
-      fprintf(stderr, "Compared values were %.15f and %.15f, are they close?", beta_read, param->d_beta_pt[rep_index]);
+      fprintf(stderr, "Compared values were %.15f and %.15f, are they close?", beta_read, param->d_beta);
       exit(EXIT_FAILURE);
     }
 
@@ -303,7 +303,7 @@ void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * 
 // save a configuration in ILDG-like format
 void write_conf_on_file_with_name_beta_pt(Gauge_Conf const * const GC,
                             GParam const * const param,
-                            char const * const namefile, int rep_index)
+                            char const * const namefile)
   {
   long si, lex;
   int i, mu;
@@ -332,7 +332,7 @@ void write_conf_on_file_with_name_beta_pt(Gauge_Conf const * const GC,
        fprintf(fp, "%d ", param->d_size[i]);
        }
 
-    fprintf(fp, "%.15f ", param->d_beta_pt[rep_index]);
+    fprintf(fp, "%.15f ", param->d_beta);
 
     fprintf(fp, "%ld %s\n", GC->update_index, md5sum);
     }
@@ -375,7 +375,7 @@ void init_gauge_conf_beta_pt(Gauge_Conf** GC, GParam const * const param) {
 		strcat(filename,"_replica_");			
 		sprintf(replica_index, "%d", i);
 		strcat(filename, replica_index); // filename = param->d_conf_file + "_replica_${i}"
-		init_gauge_conf_from_file_with_name_beta_pt(&((*GC)[i]), param, filename, i);
+		init_gauge_conf_from_file_with_name_beta_pt((*GC) + i, param + i, filename, i);
   }
 }
 
@@ -554,7 +554,6 @@ void free_gauge_conf(Gauge_Conf *GC, GParam const * const param)
 void free_replica_beta_pt(Gauge_Conf *GC, GParam* param) {
   int i;
 	for(i=0; i<param->d_N_replica_pt; i++) free_gauge_conf(&(GC[i]), param);
-  free(param->d_beta_pt);
 	free(GC);
 }
 	
@@ -675,7 +674,7 @@ void write_replica_on_file_back_beta_pt(Gauge_Conf const * const GC, GParam cons
 		sprintf(replica_index, "%d_back%d", i, counter);
 		strcat(filename,replica_index); // filename = d_conf_file + "_replica_${i}"
 
-		write_conf_on_file_with_name_beta_pt(&(GC[i]), param, filename, i);
+		write_conf_on_file_with_name_beta_pt(GC + i, param + i, filename);
 		}
   counter = 1 - counter;
   }
@@ -693,7 +692,7 @@ void write_replica_on_file_analysis_beta_pt(Gauge_Conf const * const GC, GParam 
 		sprintf(replica_index, "%d_sample_%ld", i, GC->update_index);
 		strcat(filename,replica_index); // filename = d_conf_file + "_replica_${i}"
 
-		write_conf_on_file_with_name_beta_pt(&(GC[i]), param, filename, i);
+		write_conf_on_file_with_name_beta_pt(GC + i, param + i, filename);
 		}
 }
 
@@ -711,7 +710,7 @@ void write_replica_on_file_analysis_beta_pt(Gauge_Conf const * const GC, GParam 
 		strcat(filename,"_replica_");
 		sprintf(replica_index, "%d", i);
 		strcat(filename,replica_index); // filename = d_conf_file + "_replica_${i}"
-		write_conf_on_file_with_name_beta_pt(&(GC[i]), param, filename, i);
+		write_conf_on_file_with_name_beta_pt(GC + i, param + i, filename);
 		}
   }
 	

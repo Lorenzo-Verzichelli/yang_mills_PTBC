@@ -349,6 +349,37 @@ void print_acceptances(Acc_Utils const * const acc_counters, GParam const * cons
 		}
 	}
 
+void print_acceptance_beta_pt(Acc_Utils const * const acc_counters, GParam const * const param) {
+	if(param->d_N_replica_pt==1)
+		{
+		(void) acc_counters; // to suppress compiler warning of unused variable
+		}
+	else
+		{
+		FILE *fp;	
+		double acc,err_acc;
+		int r;
+  
+		fp=fopen(param->d_swap_acc_file, "w");
+		fprintf(fp, "#swap_from    swap_to    beta_1    beta_2    acceptance(%%)    err_acceptance(%%)    swap_accepted    swap_tried\n");
+		for(r=0;r<((param->d_N_replica_pt)-1);r++)
+			{
+			if(acc_counters->num_swap[r]!=0)
+				{
+				acc = ( (double) (acc_counters->num_accepted_swap[r]) ) / ( (double) (acc_counters->num_swap[r]) ) ;
+				err_acc = sqrt( acc * (1.0-acc) / ( ( (double) (acc_counters->num_swap[r]) ) - 1.0 ) );
+				}
+			else
+				{
+				acc=0.0;
+				err_acc=0.0;
+				}
+			fprintf(fp,"%d    %d    %lf    %lf    %lf    %lf    %ld    %ld\n", r, r+1, param[r].d_beta, param[r+1].d_beta, acc*100.0, err_acc*100.0, acc_counters->num_accepted_swap[r], acc_counters->num_swap[r]);
+			}
+		fclose(fp);	  
+		}
+}
+
 void init_swap_track_file(FILE **swaptrackfilep, GParam const * const param)
 {
 	if (param->d_N_replica_pt > 1)

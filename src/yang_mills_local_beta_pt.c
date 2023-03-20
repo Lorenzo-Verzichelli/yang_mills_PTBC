@@ -39,6 +39,11 @@ void real_main(char* in_file) {
     // read input file
     readinput(in_file, &param);
 
+	beta_pt_init_and_check(&param);
+
+    GParam* param_dummy;
+	beta_pt_init_dummies(&param, &param_dummy);
+
     // initialize random generator
     initrand(param.d_randseed);
 
@@ -53,19 +58,10 @@ void real_main(char* in_file) {
 	init_geometry(&geo, &param);
 
     //init gauge confs replica
-    init_gauge_conf_beta_pt(&GC, &param);
+    init_gauge_conf_beta_pt(&GC, param_dummy);
 
     // init acceptances array
 	init_swap_acc_arrays(&acc_counters, &param);
-
-	if (param.d_beta_pt == NULL) {
-		fprintf(stderr, "Input file didn't contain beta pt info (%s, %d)\n", __FILE__, __LINE__);
-		print_template_input();
-		exit(EXIT_FAILURE);
-	}
-
-	GParam* param_dummy;
-	beta_pt_init_dummies(&param, &param_dummy);
 
     // MONTECARLO BEGIN
     time(&time1);
@@ -82,8 +78,8 @@ void real_main(char* in_file) {
 
 		if (param.d_saveconf_back_every != 0) {
 			if (GC[0].update_index % param.d_saveconf_back_every == 0) {
-				write_replica_on_file_beta_pt(GC, &param);
-				write_replica_on_file_back_beta_pt(GC, &param); 
+				write_replica_on_file_beta_pt(GC, param_dummy);
+				write_replica_on_file_back_beta_pt(GC, param_dummy); 
 			}
 		}
 		
@@ -91,7 +87,7 @@ void real_main(char* in_file) {
         {
          	if(GC[0].update_index % param.d_saveconf_analysis_every == 0 )
            	{
-           		write_replica_on_file_analysis_beta_pt(GC, &param);
+           		write_replica_on_file_analysis_beta_pt(GC, param_dummy);
            }
         }
 
@@ -115,14 +111,14 @@ void real_main(char* in_file) {
     // save configurations
     if(param.d_saveconf_back_every!=0)
       {
-      write_replica_on_file_beta_pt(GC, &param);
+      write_replica_on_file_beta_pt(GC, param_dummy);
       }
 
     // print simulation details
     print_parameters_beta_pt(&param, time1, time2);
 		
 	// print acceptances of parallel tempering
-	print_acceptances(&acc_counters, &param);
+	print_acceptance_beta_pt(&acc_counters, param_dummy);
 
     // free gauge configurations
     free_replica_beta_pt(GC, &param);
@@ -133,8 +129,8 @@ void real_main(char* in_file) {
     // free acceptances array
 	end_swap_acc_arrays(&acc_counters, &param);
 
-	//free param_dummy and pointer to betas
-	beta_pt_free_param(&param, param_dummy);
+	//free param_dummy
+	free(param_dummy);
 }
 
 int main (int argc, char **argv)

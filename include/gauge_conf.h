@@ -135,12 +135,9 @@ void init_gauge_conf_beta_pt(Gauge_Conf** GC,
                              GParam const * const param);
 void write_conf_on_file_with_name_beta_pt(Gauge_Conf const * const GC,
                             GParam const * const param,
-                            char const * const namefile, int rep_index);
+                            char const * const namefile);
 void init_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename, int rep_index);
-void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename, int rep_index);
-void write_conf_on_file_with_name_beta_pt(Gauge_Conf const * const GC,
-                            GParam const * const param,
-                            char const * const namefile, int rep_index);
+void read_gauge_conf_from_file_with_name_beta_pt(Gauge_Conf *GC, GParam const * const param, char const * const filename);
 void write_replica_on_file_beta_pt(Gauge_Conf const * const GC, GParam const * const param);
 void write_replica_on_file_back_beta_pt(Gauge_Conf const * const GC, GParam const * const param);
 void write_replica_on_file_analysis_beta_pt(Gauge_Conf const * const GC, GParam const * const param);
@@ -467,6 +464,7 @@ void conf_translation(Gauge_Conf *GC, Geometry const * const geo, GParam const *
 void init_swap_acc_arrays(Acc_Utils *acc_counters, GParam const * const param);
 void end_swap_acc_arrays(Acc_Utils *acc_counters, GParam const * const param);
 void print_acceptances(Acc_Utils const * const acc_counters, GParam const * const param);
+void print_acceptance_beta_pt(Acc_Utils const * const acc_counters, GParam const * const param);
 void init_swap_track_file(FILE **swaptrackfilep, GParam const * const param);
 void print_conf_labels(FILE *fp, Gauge_Conf const * const GC, GParam const * const param);
 
