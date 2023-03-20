@@ -1055,13 +1055,15 @@ void perform_measures_beta_pt_replica(Gauge_Conf *GC_vec,
      polyakov(GC, geo, param, &polyre, &polyim);
 		 
      charge_nocooling=topcharge(GC, geo, param);
-		 if (param->d_chi_prime_meas == 1 ) chi_prime_nocooling=topo_chi_prime(GC, geo, param);
 
 		 // refresh topological charge of periodic replica (only for multicanonic)
 		 GC->stored_topo_charge = charge_nocooling;
 
      fprintf(datafilep, "%.12g %ld %.12g %.12g %.12g %.12g %.12g ", param->d_beta, GC->update_index, plaqs, plaqt, polyre, polyim, charge_nocooling);
-		 if (param->d_chi_prime_meas == 1 ) fprintf(chiprimefilep, "%.12g %ld 0 %.12lg\n",param->d_beta, GC->update_index, chi_prime_nocooling);
+		 if (param->d_chi_prime_meas == 1 ) {
+         chi_prime_nocooling=topo_chi_prime(GC, geo, param);
+         fprintf(chiprimefilep, "%.12g %ld 0 %.12lg\n",param->d_beta, GC->update_index, chi_prime_nocooling);
+       }
 
      err=posix_memalign((void**)&charge, (size_t)DOUBLE_ALIGN, (size_t) param->d_coolrepeat * sizeof(double));
      if(err!=0)
