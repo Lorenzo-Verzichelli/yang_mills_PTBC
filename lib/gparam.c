@@ -128,7 +128,7 @@ void readinput(char *in_file, GParam *param)
                 }
              }
 
-           else if(strncmp(str, "beta", 4)==0)
+           else if(strncmp(str, "beta", 5)==0)
                   { 
                   err=fscanf(input, "%lf", &temp_d);
                   if(err!=1)
@@ -1917,8 +1917,8 @@ void beta_pt_init_and_check(GParam* param, double beta_min_pt, double beta_max_p
     fprintf(stderr, "For beta parallel tempering: beta min >= beta max (%s, %d)\n", __FILE__, __LINE__);
     exit(EXIT_FAILURE);
   }
-  if (param->d_beta_pt_swap_every < 1) {
-    fprintf(stderr, "For beta parallel tempering: swap every < 1 (%s, %d)\n", __FILE__, __LINE__);
+  if (param->d_beta_pt_swap_every < 0) {
+    fprintf(stderr, "For beta parallel tempering: swap every < 0 (%s, %d)\n", __FILE__, __LINE__);
     exit(EXIT_FAILURE);
   }
   int err = posix_memalign((void**) &(param->d_beta_pt), DOUBLE_ALIGN, (size_t) param->d_N_replica_pt * sizeof(double));

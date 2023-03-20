@@ -74,7 +74,7 @@ void real_main(char* in_file) {
         update_beta_pt_replica(GC, &geo, param_dummy); //this should work
 		if(GC[0].update_index % param.d_measevery == 0 && GC[0].update_index >= param.d_thermal)
 		{
-			perform_measures_beta_pt_replica(GC, &geo, &param, datafilep, chiprimefilep);
+			perform_measures_beta_pt_replica(GC, &geo, param_dummy, datafilep, chiprimefilep);
 			//should work, not parallelized
 			if (param.d_topcharge_tcorr_meas == 1 )
 				topcharge_timeslices_cooling_beta_pt(GC, &geo, param_dummy, topchar_tcorr_filep);
@@ -95,7 +95,7 @@ void real_main(char* in_file) {
            }
         }
 
-		if ((param.d_beta_pt_swap_every != 0) && (count % param.d_beta_pt_swap_every == 0)) {
+		if (param.d_beta_pt_swap_every != 0) if (count % param.d_beta_pt_swap_every == 0) {
 			beta_pt_swap(GC, &geo, &param, &acc_counters); // Now should work
 			print_conf_labels(swaptrackfilep, GC, &param); //unchanged
 		}

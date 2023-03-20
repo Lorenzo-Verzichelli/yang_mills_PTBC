@@ -1087,6 +1087,10 @@ void update_beta_pt_replica(Gauge_Conf* GC,
          unitarize(&(GC[i].lattice[r][dir]));
          }
       }
+
+   for (int i = 0; i < param->d_N_replica_pt; i++) {
+      GC[i].update_index++;
+   }
 }
 
 double delta_plaq_site_beta_pt(Gauge_Conf const * const GC,
