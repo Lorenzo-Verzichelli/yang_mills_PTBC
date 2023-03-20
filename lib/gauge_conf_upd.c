@@ -1149,8 +1149,8 @@ void beta_pt_swap(Gauge_Conf *GC,
 	#pragma omp parallel for num_threads(NTHREADS) reduction(+:metro_swap_prob[:num_swaps]) private(s, swap)
 	#endif
    for (s = 0; s < num_swaps_1 * (param->d_volume); s++) {
-      long site = s / param->d_volume;
-      swap = (int) (s % param->d_volume);
+      long site = s / num_swaps_1;
+      swap = (int) (s % num_swaps_1);
       int a_exch = 2 * swap + is_even_first;
       int b_exch = a_exch + 1;
 
@@ -1173,8 +1173,8 @@ void beta_pt_swap(Gauge_Conf *GC,
 	#pragma omp parallel for num_threads(NTHREADS) reduction(+:metro_swap_prob[:num_swaps]) private(s, swap)
 	#endif
    for (s = 0; s < num_swaps_2 * (param->d_volume); s++) {
-      long site = s / param->d_volume;
-      swap = (int) (s % param->d_volume);
+      long site = s / num_swaps_2;
+      swap = (int) (s % num_swaps_2);
       int a_exch = 2 * swap + is_even_first;
       int b_exch = a_exch + 1;
 
