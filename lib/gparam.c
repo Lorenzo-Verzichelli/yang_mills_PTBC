@@ -554,7 +554,7 @@ void readinput(char *in_file, GParam *param)
                   param->d_N_replica_pt = temp_i;
                   beta_pt_flag = 1;
                   }
-           else if(strncmp(str, "beta_min_pt", 11))
+           else if(strncmp(str, "beta_min_pt", 11) == 0)
                   {
                   err = fscanf(input, "%lf", &beta_min_pt);
                   if(err!=1)
@@ -563,7 +563,7 @@ void readinput(char *in_file, GParam *param)
                     exit(EXIT_FAILURE);
                     }
                   }
-           else if(strncmp(str, "beta_max_pt", 11))
+           else if(strncmp(str, "beta_max_pt", 11) == 0)
                   {
                   err = fscanf(input, "%lf", &beta_max_pt);
                   if(err!=1)
@@ -572,7 +572,7 @@ void readinput(char *in_file, GParam *param)
                     exit(EXIT_FAILURE);
                     }
                   }
-           else if(strncmp(str, "beta_pt_swap_every", 18))
+           else if(strncmp(str, "beta_pt_swap_every", 18) == 0)
                   {
                   err = fscanf(input, "%d", &temp_i);
                   if(err!=1)
