@@ -86,7 +86,7 @@ void real_main(char* in_file) {
 				write_replica_on_file_back_beta_pt(GC, &param); 
 			}
 		}
-		//TO DO: save for analysis every replica!
+		
 		if(param.d_saveconf_analysis_every!=0)
         {
          	if(GC[0].update_index % param.d_saveconf_analysis_every == 0 )

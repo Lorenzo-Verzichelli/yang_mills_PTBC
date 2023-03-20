@@ -1089,7 +1089,7 @@ void update_beta_pt_replica(Gauge_Conf* GC,
       }
 }
 
-double delta_site_plaq_beta_pt(Gauge_Conf const * const GC,
+double delta_plaq_site_beta_pt(Gauge_Conf const * const GC,
                           Geometry const * const geo,
                           GParam const * const param,
                           int a_exch, int b_exch,
