@@ -1191,6 +1191,8 @@ void beta_pt_swap(Gauge_Conf *GC,
       metro_swap_prob[a_exch] *= param[a_exch].d_beta - param[b_exch].d_beta;
       metropolis_single_swap(GC, a_exch, b_exch, metro_swap_prob[a_exch], acc_counter);
    }
+
+   free(metro_swap_prob);
 }                  
 
 // perform a complete update
