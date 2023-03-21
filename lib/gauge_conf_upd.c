@@ -1164,8 +1164,8 @@ void beta_pt_swap(Gauge_Conf *GC,
       //swapping {2 * swap + is_eve_first} with {2 * swap + is_eve_first + 1}
       int a_exch = 2 * swap + is_even_first;
       int b_exch = a_exch + 1;
-      metro_swap_prob[a_exch] *= param[a_exch].d_beta - param[b_exch].d_beta;
-      metropolis_single_swap(GC, a_exch, b_exch, metro_swap_prob[a_exch], acc_counter);
+      double r_prob = metro_swap_prob[a_exch] * (param[a_exch].d_beta - param[b_exch].d_beta);
+      metropolis_single_swap(GC, a_exch, b_exch, exp(r_prob), acc_counter);
    }
 
    is_even_first = 1 - is_even_first;
@@ -1188,8 +1188,8 @@ void beta_pt_swap(Gauge_Conf *GC,
       //swapping {2 * swap + is_eve_first} with {2 * swap + is_eve_first + 1}
       int a_exch = 2 * swap + is_even_first;
       int b_exch = a_exch + 1;
-      metro_swap_prob[a_exch] *= param[a_exch].d_beta - param[b_exch].d_beta;
-      metropolis_single_swap(GC, a_exch, b_exch, metro_swap_prob[a_exch], acc_counter);
+      double r_prob = metro_swap_prob[a_exch] * (param[a_exch].d_beta - param[b_exch].d_beta);
+      metropolis_single_swap(GC, a_exch, b_exch, exp(r_prob), acc_counter);
    }
 
    free(metro_swap_prob);
