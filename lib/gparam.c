@@ -1188,6 +1188,8 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
         for (int dir = 0; dir < STDIM; dir++)
           (*param_dummy)[rep_index].d_size[dir] = param->d_size[dir];  
         
+        (*param_dummy)[rep_index].d_beta_max_pt = param->d_beta_max_pt;
+        (*param_dummy)[rep_index].d_beta_min_pt = param->d_beta_min_pt;
         (*param_dummy)[rep_index].d_beta = param->d_beta_min_pt + rep_index * delta_beta; //ONLY DIFFERENCE
         (*param_dummy)[rep_index].d_theta = param->d_theta;
 
@@ -1214,6 +1216,7 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
         strncpy((*param_dummy)[rep_index].d_topcharge_tcorr_file, param->d_topcharge_tcorr_file, STD_STRING_LENGTH);
         strncpy((*param_dummy)[rep_index].d_log_file, param->d_log_file, STD_STRING_LENGTH);
         strncpy((*param_dummy)[rep_index].d_swap_tracking_file, param->d_swap_tracking_file, STD_STRING_LENGTH);
+        strncpy((*param_dummy)[rep_index].d_swap_acc_file, param->d_swap_acc_file, STD_STRING_LENGTH);
 
         (*param_dummy)[rep_index].d_randseed = param->d_randseed;
 
