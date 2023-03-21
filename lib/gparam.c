@@ -1181,6 +1181,7 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
     int err = posix_memalign((void**) param_dummy, DOUBLE_ALIGN, (size_t) param->d_N_replica_pt * sizeof(GParam));
     if (err) {
       fprintf(stderr, "Unable to allocate dummy params (%s, %d)", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
     }
     double delta_beta = (param->d_beta_max_pt - param->d_beta_min_pt) / (param->d_N_replica_pt - 1);
     for (int rep_index = 0; rep_index < param->d_N_replica_pt; rep_index++) {
@@ -1222,7 +1223,7 @@ void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy) {
         (*param_dummy)[rep_index].d_inv_space_vol = param->d_inv_space_vol;
     }
     (*param_dummy)[0].d_beta = param->d_beta_min_pt;
-    (*param_dummy)[param->d_N_replica_pt].d_beta = param->d_beta_max_pt;
+    (*param_dummy)[param->d_N_replica_pt - 1].d_beta = param->d_beta_max_pt;
 }
 
 void print_parameters_local_pt(GParam const * const param, time_t time_start, time_t time_end)
