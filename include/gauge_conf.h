@@ -289,6 +289,10 @@ void perform_measures_tube_conn(Gauge_Conf *GC,
 void perform_measures_tube_conn_long(Gauge_Conf *GC,
                                      GParam const * const param,
                                      FILE *datafilep);
+void measure_poly_profile(Gauge_Conf *GC,
+                          Geometry const * const geo,
+                          GParam const * const param,
+                          FILE* datafilep);
 
 // in gauge_conf_multilevel.c
 void multihit(Gauge_Conf const * const GC,

@@ -2033,3 +2033,59 @@ void perform_measures_tube_conn_long(Gauge_Conf *GC,
    }
 
 #endif
+
+void measure_poly_profile(Gauge_Conf *GC,
+                          Geometry const * const geo,
+                          GParam const * const param,
+                          FILE* datafilep)
+{
+   double* poly_re, * poly_im;
+   int x_size = param->d_size[1];
+   int err = posix_memalign((void**) &poly_re, DOUBLE_ALIGN, (size_t) x_size * sizeof(double));
+   if (err != 0) {
+      fprintf(stderr, "Unable to allocate memory");
+      exit(EXIT_FAILURE);
+   }
+   err = posix_memalign((void**) &poly_im, DOUBLE_ALIGN, (size_t) x_size * sizeof(double));
+   if (err != 0) {
+      fprintf(stderr, "Unable to allocate memory");
+      exit(EXIT_FAILURE);
+   }
+
+   int x;
+   for (x = 0; x < x_size; x++) {
+      poly_re[x] = 0;
+      poly_im[x] = 0;
+   }
+
+   long rsp;
+   #ifdef OPENMP_MODE
+   #pragma omp parallel for num_threads(NTHREADS) private(rsp) reduction(+:poly_re[:x_size]) reduction(+:poly_im[:x_size])
+   #endif
+   for (rsp = 0; rsp < param->d_space_vol; rsp++) {
+      long r;
+      GAUGE_GROUP matrix;
+
+      r=sisp_and_t_to_si(geo, rsp, 0);
+
+      one(&matrix);
+      for(int i=0; i<param->d_size[0]; i++)
+         {
+         times_equal(&matrix, &(GC->lattice[r][0]));
+         r=nnp(geo, r, 0);
+         }
+
+      int cart[STDIM];
+      si_to_cart(cart, r, param);
+      poly_re[cart[1]] += retr(&matrix);
+      poly_im[cart[1]] += imtr(&matrix);
+   }
+
+   fprintf(datafilep, "%ld \n", GC->update_index);
+   for(x = 0; x < param->d_size[1]; x++) {
+      fprintf(datafilep, "%.15f %.15f ", poly_re[x], poly_im[x]);
+   }
+   fprintf(datafilep, "\n");
+
+   free(poly_im); free(poly_re);
+}                          
