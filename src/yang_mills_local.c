@@ -26,7 +26,7 @@ void real_main(char *in_file)
 
 	char name[STD_STRING_LENGTH], aux[STD_STRING_LENGTH];
 	int count;
-	FILE *datafilep, *chiprimefilep, *topchar_tcorr_filep;
+	FILE *datafilep, *chiprimefilep, *topchar_tcorr_filep, * poly_profile_fp;
 	time_t time1, time2;
 
 	// to disable nested parallelism
@@ -43,6 +43,7 @@ void real_main(char *in_file)
 
 	// open data_file
 	init_data_file(&datafilep, &chiprimefilep, &topchar_tcorr_filep, &param);
+	if (param.d_meas_poly_profile == 1) init_poly_profile_file(&poly_profile_fp, &param);
 
 	// initialize geometry
 	init_indexing_lexeo();
@@ -85,6 +86,7 @@ void real_main(char *in_file)
 	if (param.d_sample == 0) // no update is done, only measures are performed on read configuration
 	{
 		perform_measures_localobs(&GC, &geo, &param, datafilep, chiprimefilep, topchar_tcorr_filep);
+		if (param.d_meas_poly_profile == 1) measure_poly_profile(&GC, &geo, &param, poly_profile_fp);
 	}
 	else
 	{

@@ -93,6 +93,10 @@ void readinput(char *in_file, GParam *param)
 		param->d_chi_prime_meas = 0;
 		param->d_topcharge_tcorr_meas = 0;
 
+    //default: do not compute poly_profile
+    param->d_meas_poly_profile = 0;
+    strcpy(param->d_poly_profile_file, "poly_profile.dat");
+
     input=fopen(in_file, "r"); // open the input file
     if(input==NULL)
       {
@@ -453,6 +457,29 @@ void readinput(char *in_file, GParam *param)
                     exit(EXIT_FAILURE);
                     }
                   strcpy(param->d_chiprime_file, temp_str);
+                  }
+           else if (strncmp(str, "meausre_poly_profile", 20) == 0)
+                  {
+                  err = fscanf(input, "%d", temp_i);
+                  if (err != 1)
+                    {
+                    fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
+                    exit(EXIT_FAILURE);
+                    }
+                  if (temp_i != 1) if (temp_i != 0) {
+                    fprintf (stderr, "Ignoring measure_poly_profile: neither 0 or 1\n");
+                  }
+                  else param->d_meas_poly_profile = temp_i;
+                  }
+           else if (strncmp(str, "poly_profile_data_file", 22) == 0)
+                  {
+                  err = fscanf(input, "%s", temp_str);
+                  if (err != 1)
+                    {
+                    fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
+                    exit(EXIT_FAILURE);
+                    }
+                  strcpy(param->d_poly_profile_file, temp_str);
                   }
            else if(strncmp(str, "log_file", 8)==0)
                   { 
@@ -928,6 +955,23 @@ void init_data_file(FILE **dataf, FILE **chiprimef, FILE **topchar_tcorr_f, GPar
 		{
 			(void) topchar_tcorr_f;
 		}
+}
+
+void init_poly_profile_file(FILE** poly_profile_fp, GParam const * const param)
+{
+  if (param->d_start == 2) {
+    *poly_profile_fp = fopen(param->d_poly_profile_file, "a");
+    if (*poly_profile_fp != NULL) return;
+  }
+  poly_profile_fp = fopen(param->d_poly_profile_file, "w");
+  if (*poly_profile_fp == NULL) {
+    fprintf(stderr, "Unable to open poly_profile file (%s, %d)", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  fprintf(*poly_profile_fp, "%d ", STDIM);
+  for(int i=0; i<STDIM; i++) fprintf(*poly_profile_fp, "%d ", param->d_size[i]);
+  fprintf(*poly_profile_fp, "\n");
+  fflush(*poly_profile_fp);
 }
 
 // free allocated memory for hierarc update parameters
