@@ -460,13 +460,13 @@ void readinput(char *in_file, GParam *param)
                   }
            else if (strncmp(str, "meausre_poly_profile", 20) == 0)
                   {
-                  err = fscanf(input, "%d", temp_i);
+                  err = fscanf(input, "%d", &temp_i);
                   if (err != 1)
                     {
                     fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
                     exit(EXIT_FAILURE);
                     }
-                  if (temp_i != 1) if (temp_i != 0) {
+                  if ((temp_i != 1) && (temp_i != 0)) {
                     fprintf (stderr, "Ignoring measure_poly_profile: neither 0 or 1\n");
                   }
                   else param->d_meas_poly_profile = temp_i;
@@ -963,7 +963,7 @@ void init_poly_profile_file(FILE** poly_profile_fp, GParam const * const param)
     *poly_profile_fp = fopen(param->d_poly_profile_file, "a");
     if (*poly_profile_fp != NULL) return;
   }
-  poly_profile_fp = fopen(param->d_poly_profile_file, "w");
+  *poly_profile_fp = fopen(param->d_poly_profile_file, "w");
   if (*poly_profile_fp == NULL) {
     fprintf(stderr, "Unable to open poly_profile file (%s, %d)", __FILE__, __LINE__);
     exit(EXIT_FAILURE);
