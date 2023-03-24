@@ -359,6 +359,10 @@ void compute_clovers(Gauge_Conf const * const GC,
                      Geometry const * const geo,
                      GParam const * const param,
                      int direction);
+void compute_clovers_beta_pt(Gauge_Conf const * const GC,
+                             Geometry const * const geo,
+                             GParam const * const param,
+                             int dir);
 void calcstaples_with_topo(Gauge_Conf const * const GC,
                            Geometry const * const geo,
                            GParam const * const param,

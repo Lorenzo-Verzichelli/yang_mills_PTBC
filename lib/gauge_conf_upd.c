@@ -167,6 +167,40 @@ void compute_clovers(Gauge_Conf const * const GC,
      }
   }
 
+void compute_clovers_beta_pt(Gauge_Conf const * const GC,
+                             Geometry const * const geo,
+                             GParam const * const param,
+                             int dir)
+{
+   long s;
+   #ifdef OPENMP_MODE
+   #pragma omp parallel for num_thread(NTHREADS) private(s)
+   #endif
+   for (s = 0; s < param->d_volume * param->d_N_replica_pt; s++) {
+      int rep_index = (int) (s % param->d_N_replica_pt);
+      long site = s / param->d_N_replica_pt;
+
+      GAUGE_GROUP aux;
+      int i, j;
+
+      for(i=0; i<STDIM; i++)
+         {
+         for(j=i+1; j<STDIM; j++)
+            {
+            if(i!=dir && j!=dir)
+               {
+               clover(GC + rep_index, geo, param + rep_index, site, i, j, &aux);
+
+               equal(&(GC[rep_index].clover_array[site][i][j]), &aux);
+               minus_equal_dag(&(GC[rep_index].clover_array[site][i][j]), &aux);  // clover_array[r][i][j]=aux-aux^{dag}
+
+               equal(&(GC[rep_index].clover_array[site][j][i]), &(GC[rep_index].clover_array[site][i][j]));
+               times_equal_real(&(GC[rep_index].clover_array[site][j][i]), -1.0); // clover_array[r][j][i]=-clover_array[r][i][j]
+               }
+           }
+        }
+   }
+}
 
 // compute the staple in position r, direction i and save it in M
 // when an imaginary theta term is present
