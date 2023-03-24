@@ -174,7 +174,7 @@ void compute_clovers_beta_pt(Gauge_Conf const * const GC,
 {
    long s;
    #ifdef OPENMP_MODE
-   #pragma omp parallel for num_thread(NTHREADS) private(s)
+   #pragma omp parallel for num_threads(NTHREADS) private(s)
    #endif
    for (s = 0; s < param->d_volume * param->d_N_replica_pt; s++) {
       int rep_index = (int) (s % param->d_N_replica_pt);
