@@ -135,6 +135,7 @@ void real_main(char *in_file)
 	fclose(datafilep);
 	if (param.d_chi_prime_meas==1) fclose(chiprimefilep);
 	if (param.d_topcharge_tcorr_meas==1) fclose(topchar_tcorr_filep);
+	if (param.d_meas_poly_profile == 1) fclose(poly_profile_fp);
 
 	// save configuration
 	if(param.d_saveconf_back_every!=0)
