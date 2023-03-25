@@ -458,7 +458,7 @@ void readinput(char *in_file, GParam *param)
                     }
                   strcpy(param->d_chiprime_file, temp_str);
                   }
-           else if (strncmp(str, "meausre_poly_profile", 20) == 0)
+           else if (strncmp(str, "measure_poly_profile", 20) == 0)
                   {
                   err = fscanf(input, "%d", &temp_i);
                   if (err != 1)
