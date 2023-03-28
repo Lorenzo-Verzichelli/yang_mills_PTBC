@@ -2081,7 +2081,7 @@ void measure_poly_profile(Gauge_Conf *GC,
       poly_im[cart[1]] += imtr(&matrix);
    }
 
-   fprintf(datafilep, "%ld \n", GC->update_index);
+   fprintf(datafilep, "%ld ", GC->update_index);
    for(x = 0; x < param->d_size[1]; x++) {
       fprintf(datafilep, "%.15f %.15f ", poly_re[x], poly_im[x]);
    }
