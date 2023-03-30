@@ -2086,6 +2086,7 @@ void measure_poly_profile(Gauge_Conf *GC,
       fprintf(datafilep, "%.15f %.15f ", poly_re[x], poly_im[x]);
    }
    fprintf(datafilep, "\n");
+   fflush(datafilep);
 
    free(poly_im); free(poly_re);
 }                          
