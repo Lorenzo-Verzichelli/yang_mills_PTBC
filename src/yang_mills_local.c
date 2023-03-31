@@ -99,7 +99,8 @@ void real_main(char *in_file)
 			if(GC.update_index % param.d_measevery == 0 && GC.update_index >= param.d_thermal)
 			{
 				perform_measures_localobs(&GC, &geo, &param, datafilep, chiprimefilep, topchar_tcorr_filep);
-				if (param.d_meas_poly_profile == 1) measure_poly_profile(&GC, &geo, &param, poly_profile_fp);
+				if (param.d_meas_poly_profile == 1)
+					measure_poly_profile(&GC, &geo, &param, poly_profile_fp);
 			}
 
 			// save configuration for backup

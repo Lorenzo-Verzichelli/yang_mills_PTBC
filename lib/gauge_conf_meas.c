@@ -2090,3 +2090,451 @@ void measure_poly_profile(Gauge_Conf *GC,
 
    free(poly_im); free(poly_re);
 }                          
+
+void perform_measure_spectrum(Gauge_Conf* GC,
+                              Geometry const * const geo,
+                              GParam const * const param,
+                              FILE* poly_profile_filep,
+                              FILE* plaq_profile_filep)
+{
+   double* poly_re, * poly_im;
+   int t_size = param->d_size[0];
+   int err = posix_memalign((void**) &poly_re, DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
+   if (err != 0) {
+      fprintf(stderr, "Unable to allocate memory (%s, %d)", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+   }
+   err = posix_memalign((void**) &poly_im, DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
+   if (err != 0) {
+      fprintf(stderr, "Unable to allocate memory (%s, %d)", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+   }
+   double* plaq;
+   err = posix_memalign((void**) &plaq, DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
+   if (err != 0) {
+      fprintf(stderr, "Unable to allocate memory (%s, %d)", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+   }
+
+   // number of blocking steps, must be >1
+   #define NUMBLOCK 2
+   // smearing parameter
+   const double alpha=0.5;
+   // smearing steps
+   const int smearing_steps = 3;
+
+   Gauge_Conf smeared_GC;
+   init_gauge_conf_from_gauge_conf(&smeared_GC, GC, param);
+   spatial_smearing(&smeared_GC, geo, param, alpha, smearing_steps);
+
+   poly_profile_mean_winding(&smeared_GC, geo, param, poly_re, poly_im);
+   plaq_profile(&smeared_GC, geo, param, plaq);
+
+   print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, 0, poly_profile_filep);
+   print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, 0, plaq_profile_filep);
+
+   GParam blocked_param[NUMBLOCK];
+   Geometry blocked_geo[NUMBLOCK];
+   Gauge_Conf blocked_GC[NUMBLOCK];
+
+   init_spatial_blocked_conf(blocked_GC, blocked_geo, blocked_param,
+                             GC, geo, param, alpha);
+
+   poly_profile_mean_winding(blocked_GC, blocked_geo, blocked_param, poly_re, poly_im);
+   plaq_profile(blocked_GC, blocked_geo, blocked_param, plaq);
+
+   print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, 1, poly_profile_filep);
+   print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, 1, plaq_profile_filep);
+
+   for (int i = 1; i < NUMBLOCK; i++) {
+      init_spatial_blocked_conf(blocked_GC + i, blocked_geo + i, blocked_param + i, 
+                                blocked_GC + i-1, blocked_geo + i-1, blocked_param + i-1,
+                                alpha);
+
+      poly_profile_mean_winding(blocked_GC + i, blocked_geo + i, blocked_param + i, poly_re, poly_im);
+      plaq_profile(blocked_GC + i, blocked_geo + i, blocked_param + i, plaq);
+
+      print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, i, poly_profile_filep);
+      print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, i, plaq_profile_filep);
+   }
+   
+   free_gauge_conf(&smeared_GC, param);
+   
+   for (int i = 0; i < NUMBLOCK; i++) {
+      free_gauge_conf(blocked_GC + i, blocked_param + i);
+      free_geometry(blocked_geo + i, blocked_param + i);
+   }
+}
+
+void print_poly_profile(double* poly_re, double* poly_im, int t_size,
+                        long update, int smearing, int blocking, FILE* datafilep) {
+   fprintf(datafilep, "%ld %d %d ", update, smearing, blocking);
+   for (int t = 0; t < t_size; t++)
+      fprintf(datafilep, "%.15f %.15f ", poly_re[t], poly_im[t]);
+   fprintf(datafilep, "\n");
+   fflush(datafilep);
+}
+
+void print_plaq_profile(double* plaq, int t_size,
+                        long update, int smearing, int blocking, FILE* datafilep) {
+   fprintf(datafilep, "%ld %d %d ", update, smearing, blocking);
+   for (int t = 0; t < t_size; t++)
+      fprintf(datafilep, "%.15f ", plaq[t]);
+   fprintf(datafilep, "\n");
+   fflush(datafilep);
+}
+
+void poly_profile_mean_winding(Gauge_Conf* GC,
+                               Geometry const * const geo, 
+                               GParam const * const param,
+                               double* result_re,
+                               double* result_im)
+{
+   int t_size = param->d_size[0];
+   for(int t = 0; t < t_size; t++) {
+      result_re[t] = 0;
+      result_im[t] = 0;
+   }
+
+   long r_hs;
+   for (int dir = 1; dir < STDIM; dir++) { //looping over winding dimension
+      long hypersurf = t_size; // computing the hypersurface volume 
+      for (int j_dir = 1; j_dir < STDIM; j_dir++) {
+         if (j_dir != dir) hypersurf *= param->d_size[j_dir];
+      }
+      //TO BE PARALLELIZED!
+      for (r_hs = 0; r_hs < hypersurf; r_hs++) {
+         int cart[STDIM];
+         for (int j_dir = 0; j_dir < STDIM; j_dir++) { //compute cartesian
+            if (j_dir == dir) cart[j_dir] = 0;
+            else {
+               cart[j_dir] = (int)(r_hs % param->d_size[j_dir]);
+               r_hs /= param->d_size[j_dir];
+            }
+         }
+         long r;
+         GAUGE_GROUP matrix;
+         r = cart_to_si(cart, param);
+
+         one(&matrix);
+         for (int i = 0; i < param->d_size[dir]; i++) { //winding
+            times_equal(&matrix, &(GC->lattice[r][dir]));
+            r=nnp(geo, r, dir);
+         }
+
+         result_re[cart[0]] += retr(&matrix);
+         result_im[cart[0]] += imtr(&matrix);
+      }
+   }
+   for (int t = 0; t < t_size; t++) { //normalize O(t) = sum_i O_i(t) / (dim - 1)  
+      result_re[t] /= STDIM - 1;
+      result_im[t] /= STDIM - 1;
+   }
+}
+
+void plaq_profile(Gauge_Conf* GC,
+                  Geometry const * const geo,
+                  GParam const * const param,
+                  double* result)
+{
+   for (int t = 0; t < param->d_size[0]; t++)
+      result[t] = 0.;
+   
+   long r;
+   for (r = 0; r < param->d_volume; r++) {
+      long rsp;
+      int t;
+      si_to_sisp_and_t(&rsp, &t, geo, r);
+      for (int i = 0; i < STDIM; i++) {
+         for (int j = i+1; j < STDIM; j++) {
+            result[t] += plaquettep(GC, geo, param, r, i, j);
+         }
+      }
+   }
+
+   for (int t = 0; t < param->d_size[0]; t++)
+      result[t] /= 0.5 * (double)(param->d_space_vol * (STDIM - 1) * (STDIM - 2));
+}                  
+
+// perform smearing on spatial links
+void spatial_smearing(Gauge_Conf* GC,
+                      Geometry const * const geo,
+                      GParam const * const param,
+                      double alpha,
+                      int smearing_steps)
+  {
+  int i, step;
+  long r;
+  GAUGE_GROUP M;
+  Gauge_Conf staple_GC;
+  
+  init_gauge_conf_from_gauge_conf(&staple_GC, GC, param);
+
+  for(step=0; step<smearing_steps; step++)
+     {
+     for(r = 0; r < param->d_volume; r++)
+        {
+        for(i = 1; i < STDIM; i++)
+           {
+           calcstaples_wilson_no_time(GC, geo, r, i, &M);
+           equal(&(staple_GC.lattice[r][i]), &M);
+           }
+        }
+
+     for(r = 0; r < param->d_volume; r++)
+        {
+        for(i = 1; i < STDIM; i++)
+           {
+           times_equal_real(&(staple_GC.lattice[r][i]), alpha);
+           plus_equal_dag(&GC->lattice[r][i], &(staple_GC.lattice[r][i]));
+           unitarize(&GC->lattice[r][i]); 
+           }
+        }
+     }
+
+  free_gauge_conf(&staple_GC, param);
+  }
+
+// compute blocked link for a given site
+void spatialblocking_singlelink(Gauge_Conf const * const GC,
+                                Geometry const * const geo,
+                                long r,
+                                int i,
+                                double blockcoeff,
+                                GAUGE_GROUP *M)
+  {
+  int j, l;
+  long k, k1;
+
+  GAUGE_GROUP link1, link2, link3, link4, staptmp, stap;
+
+  #if DEBUG
+  if(r >= geo->d_volume)
+    {
+    fprintf(stderr, "r too large: %ld >= %ld (%s, %d)\n", r, geo->d_volume, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  if(i >= STDIM)
+    {
+    fprintf(stderr, "i too large: i=%d >= %d (%s, %d)\n", i, STDIM, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  if(i == 0)
+    {
+    fprintf(stderr, "time direction selected: i=%d (%s, %d)\n", i, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  #endif
+
+  zero(&stap); // M=0
+
+  for(l=i+1; l< i + STDIM; l++)
+     {
+     j = (l % STDIM);
+
+     if(j!=0)
+       {
+//
+//       i ^
+//         |    (1)
+//         +----->-----+
+//         |           |
+//         |           V (2)
+//         |           |
+//         |           |
+//       k +-----------+
+//         |           |
+//         |           |
+//         |           V (3)
+//         |           |
+//         +-----<-----+-->   j
+//       r     (4)
+//
+
+       k=nnp(geo, r, i);
+       equal(&link1, &(GC->lattice[nnp(geo, k, i)][j]));  // link1 = (1)
+       equal(&link2, &(GC->lattice[nnp(geo, k, j)][i]));  // link2 = (2)
+       equal(&link3, &(GC->lattice[nnp(geo, r, j)][i]));  // link3 = (3)
+       equal(&link4, &(GC->lattice[r][j]));               // link3 = (4)
+
+       times_dag2(&staptmp, &link1, &link2);   // staptmp=link1*link2^{dag}
+       times_equal_dag(&staptmp, &link3);      // staptmp*=link3^{dag}
+       times_equal_dag(&staptmp, &link4);      // staptmp*=link4^{dag}
+
+       plus_equal(&stap, &staptmp);
+
+//
+//       i ^
+//         |   (1)
+//         +----<------+
+//         |           |
+//     (2) V           |
+//         |           |
+//      k1 +-----------+
+//         |           |
+//     (3) V           |
+//         |           |
+//         +------>----+--->j
+//        k     (4)    r
+//
+
+       k=nnm(geo, r, j);
+       k1=nnp(geo, k, i);
+
+       equal(&link1, &(GC->lattice[nnp(geo, k1, i)][j]));  // link1 = (1)
+       equal(&link2, &(GC->lattice[k1][i]));               // link2 = (2)
+       equal(&link3, &(GC->lattice[k][i]));                // link3 = (3)
+       equal(&link4, &(GC->lattice[k][j]));                // link4 = (4)
+
+       times_dag12(&staptmp, &link1, &link2); // stap=link1^{dag}*link2^{dag}
+       times_equal_dag(&staptmp, &link3);     // stap*=link3^{dag}
+       times_equal(&staptmp, &link4);         // stap*=link4
+
+       plus_equal(&stap, &staptmp);
+       }
+     }
+
+   equal(M, &(GC->lattice[r][i]));
+   times_equal(M, &(GC->lattice[nnp(geo, r, i)][i]));
+
+   times_equal_real(&stap, blockcoeff);
+   plus_equal_dag(M, &stap);
+   unitarize(M);
+   }
+
+// compute staples with no time direction
+void calcstaples_wilson_no_time(Gauge_Conf const * const GC,
+                                Geometry const * const geo,
+                                long r,
+                                int i,
+                                GAUGE_GROUP *M)
+  {
+  int j, l;
+  long k;
+  GAUGE_GROUP link1, link2, link3, link12, stap;
+
+  #if DEBUG
+  if(r >= geo->d_volume)
+    {
+    fprintf(stderr, "r too large: %ld >= %ld (%s, %d)\n", r, geo->d_volume, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  if(i >= STDIM)
+    {
+    fprintf(stderr, "i too large: i=%d >= %d (%s, %d)\n", i, STDIM, __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+    }
+  if(i == 0)
+    {
+    fprintf(stderr, "time direction selected: i=%d (%s, %d)\n", i, __FILE__, __LINE__); 
+    exit(EXIT_FAILURE);
+    }
+  #endif
+
+  zero(M); // M=0
+
+  for(l=i+1; l< i + STDIM; l++)
+     {
+     j = (l % STDIM);
+
+     if(j!=0)
+       { 
+
+//
+//       i ^
+//         |   (1)
+//         +----->-----+
+//         |           |
+//                     |
+//         |           V (2)
+//                     |
+//         |           |
+//         +-----<-----+-->   j
+//       r     (3)
+//
+
+       equal(&link1, &(GC->lattice[nnp(geo, r, i)][j]));  // link1 = (1)
+       equal(&link2, &(GC->lattice[nnp(geo, r, j)][i]));  // link2 = (2)
+       equal(&link3, &(GC->lattice[r][j]));               // link3 = (3)
+
+       times_dag2(&link12, &link1, &link2);  // link12=link1*link2^{dag}
+       times_dag2(&stap, &link12, &link3);   // stap=link12*stap^{dag}
+
+       plus_equal(M, &stap);
+
+//
+//       i ^
+//         |   (1)
+//         |----<------+
+//         |           |
+//         |
+//     (2) V           |
+//         |
+//         |           |
+//         +------>----+--->j
+//        k     (3)    r
+//
+
+       k=nnm(geo, r, j);
+
+       equal(&link1, &(GC->lattice[nnp(geo, k, i)][j]));  // link1 = (1)
+       equal(&link2, &(GC->lattice[k][i]));               // link2 = (2)
+       equal(&link3, &(GC->lattice[k][j]));               // link3 = (3)
+
+       times_dag12(&link12, &link1, &link2); // link12=link1^{dag}*link2^{dag}
+       times(&stap, &link12, &link3);        // stap=link12*link3
+
+       plus_equal(M, &stap);
+       }
+     }
+   }
+
+
+void init_spatial_blocked_conf(Gauge_Conf* blocked_GC,
+                               Geometry* blocked_geo,
+                               GParam* blocked_param,
+                               Gauge_Conf const * const source_GC,
+                               Geometry const * const sourge_geo,
+                               GParam const * const source_param,
+                               double alpha)
+{
+   *blocked_param = *source_param;
+   for (int dir = 0; dir < STDIM; dir++) {
+      if (source_param->d_size[dir] % 2 != 0){
+         fprintf(stderr, "Problem with spatial size not even: %d ! (%s, %d)\n", source_param->d_size[dir], __FILE__, __LINE__);
+         exit(EXIT_FAILURE);
+      }
+      blocked_param->d_size[dir] = source_param->d_size[dir] / 2;
+   }
+   init_derived_constants(blocked_param);
+
+   init_geometry(blocked_geo, blocked_param);
+   
+   // allocate the lattice
+   int err=posix_memalign((void**)&(blocked_GC->lattice), (size_t) DOUBLE_ALIGN, (size_t) blocked_param->d_volume * sizeof(GAUGE_GROUP *));
+   if(err!=0)
+      {
+      fprintf(stderr, "Problems in allocating the lattice! (%s, %d)\n", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+      }
+   for(long r = 0; r < (blocked_param->d_volume); r++)
+      {
+      err=posix_memalign((void**)&(blocked_GC->lattice[r]), (size_t) DOUBLE_ALIGN, (size_t) STDIM * sizeof(GAUGE_GROUP));
+      if(err!=0)
+         {
+         fprintf(stderr, "Problems in allocating the lattice! (%s, %d)\n", __FILE__, __LINE__);
+         exit(EXIT_FAILURE);
+         }
+      }
+   
+   long rb;
+   for (rb = 0; rb < blocked_param->d_volume; rb++) {
+      GAUGE_GROUP matrix;
+      for (int dir = 0; dir < STDIM; dir++) {
+         spatialblocking_singlelink(source_GC, sourge_geo, rb, dir, alpha, &matrix);
+         equal(&(blocked_GC->lattice[rb][dir]), &matrix);
+      }
+   }
+
+   blocked_GC->update_index=source_GC->update_index;
+}                               

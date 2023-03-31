@@ -293,6 +293,48 @@ void measure_poly_profile(Gauge_Conf *GC,
                           Geometry const * const geo,
                           GParam const * const param,
                           FILE* datafilep);
+void perform_measure_spectrum(Gauge_Conf* GC,
+                              Geometry const * const geo,
+                              GParam const * const param,
+                              FILE* poly_profile_filep,
+                              FILE* plaq_profile_filep);
+void print_poly_profile(double* poly_re, double* poly_im, int t_size,
+                        long update, int smearing, int blocking, FILE* datafilep);
+void print_plaq_profile(double* plaq, int t_size,
+                        long update, int smearing, int blocking, FILE* datafilep);
+void poly_profile_mean_winding(Gauge_Conf* GC,
+                               Geometry const * const geo, 
+                               GParam const * const param,
+                               double* result_re,
+                               double* result_im);
+void plaq_profile(Gauge_Conf* GC,
+                  Geometry const * const geo,
+                  GParam const * const param,
+                  double* result);
+void spatial_smearing(Gauge_Conf* GC,
+                      Geometry const * const geo,
+                      GParam const * const param,
+                      double alpha,
+                      int smearing_steps);
+void spatialblocking_singlelink(Gauge_Conf const * const GC,
+                                Geometry const * const geo,
+                                long r,
+                                int i,
+                                double blockcoeff,
+                                GAUGE_GROUP *M);
+void calcstaples_wilson_no_time(Gauge_Conf const * const GC,
+                                Geometry const * const geo,
+                                long r,
+                                int i,
+                                GAUGE_GROUP *M);
+void init_spatial_blocked_conf(Gauge_Conf* blocked_GC,
+                               Geometry* blocked_geo,
+                               GParam* blocked_param,
+                               Gauge_Conf const * const source_GC,
+                               Geometry const * const sourge_geo,
+                               GParam const * const source_param,
+                               double alpha);
+
 
 // in gauge_conf_multilevel.c
 void multihit(Gauge_Conf const * const GC,
