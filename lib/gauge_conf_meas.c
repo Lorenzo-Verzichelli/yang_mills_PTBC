@@ -2154,8 +2154,8 @@ void perform_measure_spectrum(Gauge_Conf* GC,
       poly_profile_mean_winding(blocked_GC + i, blocked_geo + i, blocked_param + i, poly_re, poly_im);
       plaq_profile(blocked_GC + i, blocked_geo + i, blocked_param + i, plaq);
 
-      print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, i, poly_profile_filep);
-      print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, i, plaq_profile_filep);
+      print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, i+1, poly_profile_filep);
+      print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, i+1, plaq_profile_filep);
    }
    
    free_gauge_conf(&smeared_GC, param);
