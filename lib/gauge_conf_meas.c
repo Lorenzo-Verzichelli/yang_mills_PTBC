@@ -2205,11 +2205,12 @@ void poly_profile_mean_winding(Gauge_Conf* GC,
       //TO BE PARALLELIZED!
       for (r_hs = 0; r_hs < hypersurf; r_hs++) {
          int cart[STDIM];
+         long aux_hs = r_hs;
          for (int j_dir = 0; j_dir < STDIM; j_dir++) { //compute cartesian
             if (j_dir == dir) cart[j_dir] = 0;
             else {
-               cart[j_dir] = (int)(r_hs % param->d_size[j_dir]);
-               r_hs /= param->d_size[j_dir];
+               cart[j_dir] = (int)(aux_hs % param->d_size[j_dir]);
+               aux_hs /= param->d_size[j_dir];
             }
          }
          long r;
