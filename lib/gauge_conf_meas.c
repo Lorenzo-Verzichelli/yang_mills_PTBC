@@ -2196,13 +2196,34 @@ void poly_profile_mean_winding(Gauge_Conf* GC,
       result_im[t] = 0;
    }
 
+   double* poly_re, * poly_im;
+
+   int err = posix_memalign(&poly_re, (size_t) DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
+   if (err != 0) {
+      fprintf(stderr, "problems allocating memoery (%s, %d)\n", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+   }
+   err = posix_memalign(&poly_im, (size_t) DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
+   if (err != 0) {
+      fprintf(stderr, "problems allocating memoery (%s, %d)\n", __FILE__, __LINE__);
+      exit(EXIT_FAILURE);
+   }
+
    long r_hs;
    for (int dir = 1; dir < STDIM; dir++) { //looping over winding dimension
       long hypersurf = t_size; // computing the hypersurface volume 
       for (int j_dir = 1; j_dir < STDIM; j_dir++) {
          if (j_dir != dir) hypersurf *= param->d_size[j_dir];
       }
-      //TO BE PARALLELIZED!
+
+      for (int t = 0; t < t_size; t++) {
+         poly_re[t] = 0.;
+         poly_im[t] = 0.;
+      }
+      
+      #ifdef OPENMP_MODE
+      #pragma omp parallel for num_threads(NTHREADS) private(r_hs) reduction(+:poly_re[:t_size]) reduction(+:poly_im[:t_size])
+      #endif
       for (r_hs = 0; r_hs < hypersurf; r_hs++) {
          int cart[STDIM];
          long aux_hs = r_hs;
@@ -2223,8 +2244,12 @@ void poly_profile_mean_winding(Gauge_Conf* GC,
             r=nnp(geo, r, dir);
          }
 
-         result_re[cart[0]] += retr(&matrix);
-         result_im[cart[0]] += imtr(&matrix);
+         poly_re[cart[0]] += retr(&matrix);
+         poly_im[cart[0]] += imtr(&matrix);
+      }
+      for (int t = 0; t < t_size; t++) { //Different ways to do this. Ask Bonanno which is better
+         result_re[t] += poly_re[t] / hypersurf;
+         result_im[t] += poly_im[t] / hypersurf;
       }
    }
    for (int t = 0; t < t_size; t++) { //normalize O(t) = sum_i O_i(t) / (dim - 1)  
@@ -2238,10 +2263,14 @@ void plaq_profile(Gauge_Conf* GC,
                   GParam const * const param,
                   double* result)
 {
-   for (int t = 0; t < param->d_size[0]; t++)
+   int t_size = param->d_size[0];
+   for (int t = 0; t < t_size; t++)
       result[t] = 0.;
    
    long r;
+   #ifdef OPENMP_MODE
+   #pragma omp parallel for num_threads(NTHREADS) private(r) reduction(+:plaq[:t_size])
+   #endif
    for (r = 0; r < param->d_volume; r++) {
       long rsp;
       int t;
@@ -2253,7 +2282,7 @@ void plaq_profile(Gauge_Conf* GC,
       }
    }
 
-   for (int t = 0; t < param->d_size[0]; t++)
+   for (int t = 0; t < t_size; t++)
       result[t] /= 0.5 * (double)(param->d_space_vol * (STDIM - 1) * (STDIM - 2));
 }                  
 
@@ -2266,22 +2295,27 @@ void spatial_smearing(Gauge_Conf* GC,
   {
   int i, step;
   long r;
-  GAUGE_GROUP M;
   Gauge_Conf staple_GC;
   
   init_gauge_conf_from_gauge_conf(&staple_GC, GC, param);
 
   for(step=0; step<smearing_steps; step++)
      {
+     #ifdef OPENMP_MODE
+     #pragma omp parallel for num_threads(NTHREADS) private(r)
+     #endif
      for(r = 0; r < param->d_volume; r++)
         {
+        GAUGE_GROUP matrix;
         for(i = 1; i < STDIM; i++)
            {
-           calcstaples_wilson_no_time(GC, geo, r, i, &M);
-           equal(&(staple_GC.lattice[r][i]), &M);
+           calcstaples_wilson_no_time(GC, geo, r, i, &matrix);
+           equal(&(staple_GC.lattice[r][i]), &matrix);
            }
         }
-
+     #ifdef OPENMP_MODE
+     #pragma omp parallel for num_threads(NTHREADS) private(r)
+     #endif
      for(r = 0; r < param->d_volume; r++)
         {
         for(i = 1; i < STDIM; i++)
@@ -2528,11 +2562,19 @@ void init_spatial_blocked_conf(Gauge_Conf* blocked_GC,
          }
       }
    
-   long rb;
+   long rb; // blocked conf position
+   /* Commented waiting for Bonanno approoval
+   #ifdef OPENMP_MODE
+   #pragma omp parallel for num_threads(NTHREADS) private(rb)
+   #endif */
    for (rb = 0; rb < blocked_param->d_volume; rb++) {
       GAUGE_GROUP matrix;
       for (int dir = 0; dir < STDIM; dir++) {
-         spatialblocking_singlelink(source_GC, sourge_geo, rb, dir, alpha, &matrix);
+         int cart[STDIM]; // converting to source conf position
+         si_to_cart(cart, rb, blocked_param);
+         for (int i = 1; i < STDIM; i++) cart[i] *= 2;
+         long r = cart_to_si(cart, source_param); //source conf position
+         spatialblocking_singlelink(source_GC, sourge_geo, r, dir, alpha, &matrix);
          equal(&(blocked_GC->lattice[rb][dir]), &matrix);
       }
    }
