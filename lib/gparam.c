@@ -96,6 +96,7 @@ void readinput(char *in_file, GParam *param)
     //default: do not compute poly_profile
     param->d_meas_poly_profile = 0;
     strcpy(param->d_poly_profile_file, "poly_profile.dat");
+    strcpy(param->d_plaq_profile_file, "plaq_profile.dat");
 
     input=fopen(in_file, "r"); // open the input file
     if(input==NULL)
@@ -480,6 +481,16 @@ void readinput(char *in_file, GParam *param)
                     exit(EXIT_FAILURE);
                     }
                   strcpy(param->d_poly_profile_file, temp_str);
+                  }
+           else if (strncmp(str, "plaq_profile_data_file", 22) == 0)
+                  {
+                  err = fscanf(input, "%s", temp_str);
+                  if (err != 1)
+                    {
+                    fprintf(stderr, "Error in reading the file %s (%s, %d)\n", in_file, __FILE__, __LINE__);
+                    exit(EXIT_FAILURE);
+                    }
+                  strcpy(param->d_plaq_profile_file, temp_str);
                   }
            else if(strncmp(str, "log_file", 8)==0)
                   { 
@@ -972,6 +983,23 @@ void init_poly_profile_file(FILE** poly_profile_fp, GParam const * const param)
   for(int i=0; i<STDIM; i++) fprintf(*poly_profile_fp, "%d ", param->d_size[i]);
   fprintf(*poly_profile_fp, "\n");
   fflush(*poly_profile_fp);
+}
+
+void init_plaq_profile_file(FILE** plaq_profile_fp, GParam const * const param)
+{
+  if (param->d_start == 2) {
+    *plaq_profile_fp = fopen(param->d_plaq_profile_file, "a");
+    if (*plaq_profile_fp != NULL) return;
+  }
+  *plaq_profile_fp = fopen(param->d_plaq_profile_file, "w");
+  if (plaq_profile_fp == NULL) {
+    fprintf(stderr, "Unable to open plaq_profile file (%s, %d)", __FILE__, __LINE__);
+    exit(EXIT_FAILURE);
+  }
+  fprintf(*plaq_profile_fp, "%d ", STDIM);
+  for (int i = 0; i < STDIM; i++) fprintf(*plaq_profile_fp, "%d ", param->d_size[i]);
+  fprintf(*plaq_profile_fp, "\n");
+  fflush(*plaq_profile_fp);
 }
 
 // free allocated memory for hierarc update parameters

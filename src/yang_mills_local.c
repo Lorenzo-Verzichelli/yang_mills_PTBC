@@ -26,7 +26,7 @@ void real_main(char *in_file)
 
 	char name[STD_STRING_LENGTH], aux[STD_STRING_LENGTH];
 	int count;
-	FILE *datafilep, *chiprimefilep, *topchar_tcorr_filep, * poly_profile_fp;
+	FILE *datafilep, *chiprimefilep, *topchar_tcorr_filep, * poly_profile_fp, * plaq_profile_fp;
 	time_t time1, time2;
 
 	// to disable nested parallelism
@@ -43,7 +43,10 @@ void real_main(char *in_file)
 
 	// open data_file
 	init_data_file(&datafilep, &chiprimefilep, &topchar_tcorr_filep, &param);
-	if (param.d_meas_poly_profile == 1) init_poly_profile_file(&poly_profile_fp, &param);
+	if (param.d_meas_poly_profile == 1) {
+		init_poly_profile_file(&poly_profile_fp, &param);
+		init_plaq_profile_file(&plaq_profile_fp, &param);
+	}
 
 	// initialize geometry
 	init_indexing_lexeo();
@@ -100,7 +103,7 @@ void real_main(char *in_file)
 			{
 				perform_measures_localobs(&GC, &geo, &param, datafilep, chiprimefilep, topchar_tcorr_filep);
 				if (param.d_meas_poly_profile == 1)
-					measure_poly_profile(&GC, &geo, &param, poly_profile_fp);
+					perform_measure_spectrum(&GC, &geo, &param, poly_profile_fp, plaq_profile_fp);
 			}
 
 			// save configuration for backup
@@ -137,7 +140,10 @@ void real_main(char *in_file)
 	fclose(datafilep);
 	if (param.d_chi_prime_meas==1) fclose(chiprimefilep);
 	if (param.d_topcharge_tcorr_meas==1) fclose(topchar_tcorr_filep);
-	if (param.d_meas_poly_profile == 1) fclose(poly_profile_fp);
+	if (param.d_meas_poly_profile == 1) {
+		fclose(poly_profile_fp);
+		fclose(plaq_profile_fp);
+	}
 
 	// save configuration
 	if(param.d_saveconf_back_every!=0)
