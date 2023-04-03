@@ -884,7 +884,7 @@ void pos_slice_to_cart(int* cartcoord, long r_slice, int dir, GParam const * con
   for (int j_dir = 0; j_dir < STDIM; j_dir++) {
     if (j_dir == dir) cartcoord[j_dir] = 0;
     else {
-      cartcoord[j_dir] = r_slice % param->d_size[j_dir];
+      cartcoord[j_dir] = (int) (r_slice % param->d_size[j_dir]);
       r_slice /= param->d_size[j_dir];
     }
   }

@@ -89,6 +89,8 @@ void lexeo_to_lexeosp_and_t(long *lexeosp, int *t, long lexeo, GParam const * co
 
 long cart_to_lexeo_rect(int const * const cartcoord, Rectangle const * const most_update);
 
+void pos_slice_to_cart(int* cartcoord, long r_slice, int dir, GParam const * const param);
+
 // geometry of rectangles used in the hierarchical update during parallel tempering
 
 int periodic_condition(int const coord, int const L_max);
