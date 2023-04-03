@@ -10,8 +10,6 @@
 #include<stdlib.h>
 #include<string.h>
 #include<time.h>
-#include "gparam.h"
-
 
 // remove from input file white/empty lines and comments
 // comments start with the charachter #
