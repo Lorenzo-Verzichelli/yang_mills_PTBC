@@ -22,6 +22,9 @@ void init_indexing_lexeo(void)
 	
 	// for rectangles
 	cart_to_si_rect = &cart_to_lexeo_rect;
+
+  //used in poly_profile_mean_winding
+  r_slice_to_cart = &pos_slice_to_cart;
   }
 
 
@@ -875,6 +878,16 @@ double square_distance(long const i, long const j, GParam const * const param)
     distance2 += d[mu]*d[mu]; // distance^2 = sum_mu d_mu^2
   }
   return distance2;
+}
+
+void pos_slice_to_cart(int* cartcoord, long r_slice, int dir, GParam const * const param) {
+  for (int j_dir = 0; j_dir < STDIM; j_dir++) {
+    if (j_dir == dir) cartcoord[j_dir] = 0;
+    else {
+      cartcoord[j_dir] = r_slice % param->d_size[j_dir];
+      r_slice /= param->d_size[j_dir];
+    }
+  }
 }
 
 #endif

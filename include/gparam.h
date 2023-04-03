@@ -124,4 +124,6 @@ void print_parameters_tube_conn_long(GParam * param, time_t time_start, time_t t
 void beta_pt_init_and_check(GParam* param);
 void beta_pt_init_dummies(GParam const * const param, GParam** param_dummy);
 
+void blocking_init_param(GParam* blocked_param, GParam const * const source_param);
+
 #endif

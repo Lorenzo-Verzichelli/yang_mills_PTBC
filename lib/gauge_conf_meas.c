@@ -2130,21 +2130,21 @@ void perform_measure_spectrum(Gauge_Conf* GC,
    poly_profile_mean_winding(&smeared_GC, geo, param, poly_re, poly_im);
    plaq_profile(&smeared_GC, geo, param, plaq);
 
-   print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, 0, poly_profile_filep);
-   print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, 0, plaq_profile_filep);
+   print_poly_profile(poly_re, poly_im, t_size, smeared_GC.update_index, smearing_steps, 0, poly_profile_filep);
+   print_plaq_profile(plaq, t_size, smeared_GC.update_index, smearing_steps, 0, plaq_profile_filep);
 
    GParam blocked_param[NUMBLOCK];
    Geometry blocked_geo[NUMBLOCK];
    Gauge_Conf blocked_GC[NUMBLOCK];
 
    init_spatial_blocked_conf(blocked_GC, blocked_geo, blocked_param,
-                             GC, geo, param, alpha);
+                             &smeared_GC, geo, param, alpha);
 
    poly_profile_mean_winding(blocked_GC, blocked_geo, blocked_param, poly_re, poly_im);
    plaq_profile(blocked_GC, blocked_geo, blocked_param, plaq);
 
-   print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, 1, poly_profile_filep);
-   print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, 1, plaq_profile_filep);
+   print_poly_profile(poly_re, poly_im, t_size, blocked_GC->update_index, smearing_steps, 1, poly_profile_filep);
+   print_plaq_profile(plaq, t_size, blocked_GC->update_index, smearing_steps, 1, plaq_profile_filep);
 
    for (int i = 1; i < NUMBLOCK; i++) {
       init_spatial_blocked_conf(blocked_GC + i, blocked_geo + i, blocked_param + i, 
@@ -2154,8 +2154,8 @@ void perform_measure_spectrum(Gauge_Conf* GC,
       poly_profile_mean_winding(blocked_GC + i, blocked_geo + i, blocked_param + i, poly_re, poly_im);
       plaq_profile(blocked_GC + i, blocked_geo + i, blocked_param + i, plaq);
 
-      print_poly_profile(poly_re, poly_im, t_size, GC->update_index, smearing_steps, i+1, poly_profile_filep);
-      print_plaq_profile(plaq, t_size, GC->update_index, smearing_steps, i+1, plaq_profile_filep);
+      print_poly_profile(poly_re, poly_im, t_size, blocked_GC[i].update_index, smearing_steps, i+1, poly_profile_filep);
+      print_plaq_profile(plaq, t_size, blocked_GC[i].update_index, smearing_steps, i+1, plaq_profile_filep);
    }
    
    free_gauge_conf(&smeared_GC, param);
@@ -2164,6 +2164,10 @@ void perform_measure_spectrum(Gauge_Conf* GC,
       free_gauge_conf(blocked_GC + i, blocked_param + i);
       free_geometry(blocked_geo + i, blocked_param + i);
    }
+
+   free(poly_re);
+   free(poly_im);
+   free(plaq);
 }
 
 void print_poly_profile(double* poly_re, double* poly_im, int t_size,
@@ -2211,9 +2215,9 @@ void poly_profile_mean_winding(Gauge_Conf* GC,
 
    long r_hs;
    for (int dir = 1; dir < STDIM; dir++) { //looping over winding dimension
-      long hypersurf = t_size; // computing the hypersurface volume 
+      long space_slice = t_size; // computing the hypersurface volume 
       for (int j_dir = 1; j_dir < STDIM; j_dir++) {
-         if (j_dir != dir) hypersurf *= param->d_size[j_dir];
+         if (j_dir != dir) space_slice *= param->d_size[j_dir];
       }
 
       for (int t = 0; t < t_size; t++) {
@@ -2224,16 +2228,9 @@ void poly_profile_mean_winding(Gauge_Conf* GC,
       #ifdef OPENMP_MODE
       #pragma omp parallel for num_threads(NTHREADS) private(r_hs) reduction(+:poly_re[:t_size]) reduction(+:poly_im[:t_size])
       #endif
-      for (r_hs = 0; r_hs < hypersurf; r_hs++) {
+      for (r_hs = 0; r_hs < space_slice; r_hs++) {
          int cart[STDIM];
-         long aux_hs = r_hs;
-         for (int j_dir = 0; j_dir < STDIM; j_dir++) { //compute cartesian
-            if (j_dir == dir) cart[j_dir] = 0;
-            else {
-               cart[j_dir] = (int)(aux_hs % param->d_size[j_dir]);
-               aux_hs /= param->d_size[j_dir];
-            }
-         }
+         r_slice_to_cart(cart, r_hs, dir, param);
          long r;
          GAUGE_GROUP matrix;
          r = cart_to_si(cart, param);
@@ -2247,15 +2244,18 @@ void poly_profile_mean_winding(Gauge_Conf* GC,
          poly_re[cart[0]] += retr(&matrix);
          poly_im[cart[0]] += imtr(&matrix);
       }
-      for (int t = 0; t < t_size; t++) { //Different ways to do this. Ask Bonanno which is better
-         result_re[t] += poly_re[t] / hypersurf;
-         result_im[t] += poly_im[t] / hypersurf;
+      for (int t = 0; t < t_size; t++) { 
+         result_re[t] += poly_re[t] / space_slice;
+         result_im[t] += poly_im[t] / space_slice;
       }
    }
    for (int t = 0; t < t_size; t++) { //normalize O(t) = sum_i O_i(t) / (dim - 1)  
       result_re[t] /= STDIM - 1;
       result_im[t] /= STDIM - 1;
    }
+
+   free(poly_im);
+   free(poly_re);
 }
 
 void plaq_profile(Gauge_Conf* GC,
@@ -2275,7 +2275,7 @@ void plaq_profile(Gauge_Conf* GC,
       long rsp;
       int t;
       si_to_sisp_and_t(&rsp, &t, geo, r);
-      for (int i = 0; i < STDIM; i++) {
+      for (int i = 1; i < STDIM; i++) {
          for (int j = i+1; j < STDIM; j++) {
             result[t] += plaquettep(GC, geo, param, r, i, j);
          }
@@ -2283,7 +2283,7 @@ void plaq_profile(Gauge_Conf* GC,
    }
 
    for (int t = 0; t < t_size; t++)
-      result[t] /= 0.5 * (double)(param->d_space_vol * (STDIM - 1) * (STDIM - 2));
+      result[t] /= (double)(param->d_space_vol * (STDIM - 1) * (STDIM - 2) / 2);
 }                  
 
 // perform smearing on spatial links
@@ -2306,11 +2306,9 @@ void spatial_smearing(Gauge_Conf* GC,
      #endif
      for(r = 0; r < param->d_volume; r++)
         {
-        GAUGE_GROUP matrix;
         for(i = 1; i < STDIM; i++)
            {
-           calcstaples_wilson_no_time(GC, geo, r, i, &matrix);
-           equal(&(staple_GC.lattice[r][i]), &matrix);
+           calcstaples_wilson_no_time(GC, geo, r, i, &(staple_GC.lattice[r][i]));
            }
         }
      #ifdef OPENMP_MODE
@@ -2321,8 +2319,8 @@ void spatial_smearing(Gauge_Conf* GC,
         for(i = 1; i < STDIM; i++)
            {
            times_equal_real(&(staple_GC.lattice[r][i]), alpha);
-           plus_equal_dag(&GC->lattice[r][i], &(staple_GC.lattice[r][i]));
-           unitarize(&GC->lattice[r][i]); 
+           plus_equal_dag(&(GC->lattice[r][i]), &(staple_GC.lattice[r][i]));
+           unitarize(&(GC->lattice[r][i])); 
            }
         }
      }
@@ -2533,15 +2531,7 @@ void init_spatial_blocked_conf(Gauge_Conf* blocked_GC,
                                GParam const * const source_param,
                                double alpha)
 {
-   *blocked_param = *source_param;
-   for (int dir = 0; dir < STDIM; dir++) {
-      if (source_param->d_size[dir] % 2 != 0){
-         fprintf(stderr, "Problem with spatial size not even: %d ! (%s, %d)\n", source_param->d_size[dir], __FILE__, __LINE__);
-         exit(EXIT_FAILURE);
-      }
-      blocked_param->d_size[dir] = source_param->d_size[dir] / 2;
-   }
-   init_derived_constants(blocked_param);
+   blocking_init_param(blocked_param, source_param);
 
    init_geometry(blocked_geo, blocked_param);
    
@@ -2563,19 +2553,16 @@ void init_spatial_blocked_conf(Gauge_Conf* blocked_GC,
       }
    
    long rb; // blocked conf position
-   /* Commented waiting for Bonanno approoval
    #ifdef OPENMP_MODE
    #pragma omp parallel for num_threads(NTHREADS) private(rb)
-   #endif */
+   #endif
    for (rb = 0; rb < blocked_param->d_volume; rb++) {
-      GAUGE_GROUP matrix;
-      for (int dir = 0; dir < STDIM; dir++) {
+      for (int dir = 1; dir < STDIM; dir++) {
          int cart[STDIM]; // converting to source conf position
          si_to_cart(cart, rb, blocked_param);
          for (int i = 1; i < STDIM; i++) cart[i] *= 2;
          long r = cart_to_si(cart, source_param); //source conf position
-         spatialblocking_singlelink(source_GC, sourge_geo, r, dir, alpha, &matrix);
-         equal(&(blocked_GC->lattice[rb][dir]), &matrix);
+         spatialblocking_singlelink(source_GC, sourge_geo, r, dir, alpha, &(blocked_GC->lattice[rb][dir]));
       }
    }
 

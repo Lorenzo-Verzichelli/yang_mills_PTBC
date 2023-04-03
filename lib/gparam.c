@@ -10,6 +10,7 @@
 #include<stdlib.h>
 #include<string.h>
 #include<time.h>
+#include "gparam.h"
 
 
 // remove from input file white/empty lines and comments
@@ -1991,4 +1992,16 @@ void beta_pt_init_and_check(GParam* param) {
   }
 }
 
+void blocking_init_param(GParam *blocked_param, GParam const *const source_param)
+{
+  memcpy(blocked_param, source_param, sizeof(GParam));
+  for (int dir = 1; dir < STDIM; dir++) {
+      if (source_param->d_size[dir] % 2 != 0){
+         fprintf(stderr, "Problem with spatial size not even: %d ! (%s, %d)\n", source_param->d_size[dir], __FILE__, __LINE__);
+         exit(EXIT_FAILURE);
+      }
+      blocked_param->d_size[dir] = source_param->d_size[dir] / 2;
+   }
+   init_derived_constants(blocked_param);
+}
 #endif

@@ -29,6 +29,8 @@ void (*si_to_sisp_and_t_compute)(long *sisp, int *t, long si, GParam const * con
 
 long (*cart_to_si_rect)(int const * const cartcoord, Rectangle const * const most_update); // cartesian -> single index on rectangles
 
+void (*r_slice_to_cart)(int* cartcoord, long r_slice, int dir, GParam const * const param); // si in the slice x_{dir} = 0 -> cartesian coordinates
+
 // general functions
 void init_indexing_lexeo(void); // has to be called before init_geometry
 void init_geometry(Geometry *geo, GParam const * const param);
