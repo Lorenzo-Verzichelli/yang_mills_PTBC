@@ -2202,12 +2202,12 @@ void poly_profile_mean_winding(Gauge_Conf* GC,
 
    double* poly_re, * poly_im;
 
-   int err = posix_memalign(&poly_re, (size_t) DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
+   int err = posix_memalign((void**) &poly_re, (size_t) DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
    if (err != 0) {
       fprintf(stderr, "problems allocating memoery (%s, %d)\n", __FILE__, __LINE__);
       exit(EXIT_FAILURE);
    }
-   err = posix_memalign(&poly_im, (size_t) DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
+   err = posix_memalign((void**) &poly_im, (size_t) DOUBLE_ALIGN, (size_t) t_size * sizeof(double));
    if (err != 0) {
       fprintf(stderr, "problems allocating memoery (%s, %d)\n", __FILE__, __LINE__);
       exit(EXIT_FAILURE);
