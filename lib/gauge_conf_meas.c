@@ -2269,7 +2269,7 @@ void plaq_profile(Gauge_Conf* GC,
    
    long r;
    #ifdef OPENMP_MODE
-   #pragma omp parallel for num_threads(NTHREADS) private(r) reduction(+:plaq[:t_size])
+   #pragma omp parallel for num_threads(NTHREADS) private(r) reduction(+:result[:t_size])
    #endif
    for (r = 0; r < param->d_volume; r++) {
       long rsp;
